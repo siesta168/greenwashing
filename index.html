@@ -1,0 +1,2323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>漂绿表述识别与举报信助手 · 纯本地工具</title>
+<meta name="description" content="识别企业宣传中的漂绿（greenwashing）表述，生成举报信草稿。纯前端运行，数据不上传服务器。">
+<style>
+/* ============================================================
+   漂绿识别工具 · 样式（浅色主题）
+   ============================================================ */
+:root{
+  --bg:#f5f7f6;
+  --bg-card:#ffffff;
+  --bg-soft:#f1f5f4;
+  --bg-inset:#f8fafa;
+  --line:#e2e8e6;
+  --line-strong:#cfd9d6;
+  --txt:#16211f;
+  --txt-2:#4b5b57;
+  --txt-3:#7d8d89;
+  --brand:#0f7a63;
+  --brand-d:#0b5f4e;
+  --brand-l:#e6f4f0;
+  --high:#c62828;
+  --high-bg:#fdeceb;
+  --high-bd:#f3b8b4;
+  --mid:#b45f06;
+  --mid-bg:#fff4e5;
+  --mid-bd:#f5d3a3;
+  --low:#4a6b82;
+  --low-bg:#eef3f7;
+  --low-bd:#c5d6e2;
+  --radius:12px;
+  --radius-s:8px;
+  --shadow:0 1px 2px rgba(16,40,35,.05), 0 6px 18px rgba(16,40,35,.05);
+}
+
+*{box-sizing:border-box;}
+[hidden]{display:none !important;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--txt);
+  font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Heiti SC",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+  overflow-x:clip;
+}
+.wrap{max-width:1240px;margin:0 auto;padding:0 18px;}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:.01em;}
+p{margin:0;}
+a{color:var(--brand);}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  background:linear-gradient(180deg,#ffffff,#fbfdfc);
+  border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:40;
+}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:14px;padding-bottom:14px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:11px;min-width:0;}
+.logo{
+  width:38px;height:38px;flex:0 0 38px;border-radius:10px;
+  background:var(--brand-l);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;border:1px solid #cfe6df;
+}
+.brand-txt h1{font-size:17px;line-height:1.35;}
+.brand-txt p{font-size:12.5px;color:var(--txt-3);margin-top:2px;}
+.topbar-actions{display:flex;align-items:center;gap:10px;}
+
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12px;padding:5px 11px;border-radius:999px;
+  background:var(--brand-l);color:var(--brand-d);border:1px solid #cfe6df;white-space:nowrap;
+}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.16);}
+
+/* ---------- 免责横幅 ---------- */
+.disclaimer-bar{background:#fff8e6;border-bottom:1px solid #f2e2b8;}
+.disclaimer-inner{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-size:12.8px;color:#7a5a12;padding:9px 18px;
+}
+.disclaimer-inner strong{color:#5c430c;}
+
+/* ---------- 布局 ---------- */
+.layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+  gap:18px;align-items:start;padding-top:18px;padding-bottom:28px;
+}
+.col-main,.col-side{display:flex;flex-direction:column;gap:18px;min-width:0;}
+.col-full{grid-column:1/-1;min-width:0;}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--bg-card);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 16px 18px;
+}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:12px;flex-wrap:wrap;
+}
+.card-head h2{font-size:15px;display:flex;align-items:center;gap:8px;}
+.step{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:6px;
+  background:var(--brand);color:#fff;font-size:12px;font-weight:700;
+}
+.counter{font-size:12.5px;color:var(--txt-3);font-variant-numeric:tabular-nums;}
+.hint{font-size:12.5px;color:var(--txt-3);margin:-4px 0 10px;}
+
+/* ---------- 控件 ---------- */
+textarea,input[type=text],select{
+  width:100%;font:inherit;color:var(--txt);
+  background:var(--bg-inset);
+  border:1px solid var(--line);border-radius:var(--radius-s);
+  padding:10px 12px;outline:none;transition:border-color .15s,box-shadow .15s;
+  resize:vertical;
+}
+textarea{line-height:1.75;}
+textarea:focus,input[type=text]:focus,select:focus{
+  border-color:var(--brand);box-shadow:0 0 0 3px rgba(15,122,99,.12);background:#fff;
+}
+textarea.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;font-size:13px;line-height:1.85;}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;justify-content:center;
+  font:inherit;font-size:13.5px;font-weight:550;
+  padding:8px 14px;border-radius:var(--radius-s);
+  border:1px solid var(--line-strong);background:#fff;color:var(--txt-2);
+  cursor:pointer;transition:.15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-l);}
+.btn:active{transform:translateY(1px);}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;}
+.btn-primary:hover{background:var(--brand-d);border-color:var(--brand-d);color:#fff;}
+.btn-mini{font-size:12.5px;padding:5px 10px;border-radius:6px;}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--txt-2);}
+.btn-ghost:hover{background:var(--bg-soft);border-color:var(--line);}
+
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--txt-2);cursor:pointer;user-select:none;}
+.chk input{accent-color:var(--brand);width:15px;height:15px;}
+
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap;}
+.foot-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+
+/* ---------- 高亮原文 ---------- */
+.legend{display:flex;gap:8px;flex-wrap:wrap;}
+.lg{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid;}
+.lg-high{background:var(--high-bg);color:var(--high);border-color:var(--high-bd);}
+.lg-mid{background:var(--mid-bg);color:var(--mid);border-color:var(--mid-bd);}
+.lg-low{background:var(--low-bg);color:var(--low);border-color:var(--low-bd);}
+
+.marked{
+  background:var(--bg-inset);border:1px solid var(--line);
+  border-radius:var(--radius-s);padding:14px;margin:0;
+  font-size:14.5px;line-height:2;white-space:pre-wrap;word-break:break-word;
+  max-height:460px;overflow:auto;overscroll-behavior:contain;
+}
+.marked mark{
+  padding:1px 3px;border-radius:4px;cursor:pointer;
+  border-bottom:2px solid;font-weight:600;
+  transition:filter .15s;
+}
+.marked mark:hover{filter:brightness(.94);}
+.marked mark.lv-high{background:var(--high-bg);color:var(--high);border-color:var(--high);}
+.marked mark.lv-mid{background:var(--mid-bg);color:var(--mid);border-color:var(--mid);}
+.marked mark.lv-low{background:var(--low-bg);color:var(--low);border-color:var(--low);}
+.marked mark.flash{outline:2px solid var(--brand);outline-offset:2px;}
+
+/* ---------- 风险总览 ---------- */
+.overview{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.score{
+  width:86px;height:86px;flex:0 0 86px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:5px solid var(--line);background:#fff;
+}
+.score b{font-size:24px;line-height:1;font-variant-numeric:tabular-nums;}
+.score span{font-size:11.5px;color:var(--txt-3);margin-top:3px;}
+.score.s-high{border-color:var(--high);color:var(--high);}
+.score.s-mid{border-color:var(--mid);color:var(--mid);}
+.score.s-low{border-color:#7fb69f;color:var(--brand);}
+.ov-txt{flex:1;min-width:180px;}
+.ov-txt .ov-level{font-size:16px;font-weight:650;margin-bottom:3px;}
+.ov-txt p{font-size:12.8px;color:var(--txt-3);}
+.ov-nums{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.ov-nums span{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid;}
+.catbars{margin-top:14px;display:flex;flex-direction:column;gap:7px;}
+.catbar{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+.catbar .cb-name{flex:0 0 108px;color:var(--txt-2);}
+.catbar .cb-track{flex:1;height:7px;background:var(--bg-soft);border-radius:99px;overflow:hidden;}
+.catbar .cb-fill{height:100%;background:var(--brand);border-radius:99px;}
+.catbar .cb-num{flex:0 0 30px;text-align:right;color:var(--txt-3);font-variant-numeric:tabular-nums;}
+
+/* ---------- 清单筛选 ---------- */
+.filters{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{
+  font:inherit;font-size:12.5px;padding:4px 11px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--line-strong);background:#fff;color:var(--txt-2);transition:.15s;
+}
+.chip i{font-style:normal;color:var(--txt-3);font-size:11.5px;}
+.chip:hover{border-color:var(--brand);color:var(--brand);}
+.chip.is-on{background:var(--brand);border-color:var(--brand);color:#fff;}
+.chip.is-on i{color:rgba(255,255,255,.8);}
+.select{flex:1;min-width:130px;font-size:13px;padding:6px 10px;}
+
+/* ---------- 问题条目 ---------- */
+.issues{display:flex;flex-direction:column;gap:10px;max-height:560px;overflow:auto;padding-right:2px;overscroll-behavior:contain;}
+.issue{
+  border:1px solid var(--line);border-left-width:4px;border-radius:var(--radius-s);
+  background:#fff;padding:11px 12px;transition:.15s;
+}
+.issue.r-high{border-left-color:var(--high);}
+.issue.r-mid{border-left-color:var(--mid);}
+.issue.r-low{border-left-color:var(--low-bd);}
+.issue.flash{box-shadow:0 0 0 3px rgba(15,122,99,.18);}
+.issue-top{display:flex;align-items:center;gap:7px;margin-bottom:7px;flex-wrap:wrap;}
+.tag{font-size:11.5px;padding:2px 8px;border-radius:5px;border:1px solid;font-weight:600;}
+.tag.t-high{background:var(--high-bg);color:var(--high);border-color:var(--high-bd);}
+.tag.t-mid{background:var(--mid-bg);color:var(--mid);border-color:var(--mid-bd);}
+.tag.t-low{background:var(--low-bg);color:var(--low);border-color:var(--low-bd);}
+.tag-cat{font-size:11.5px;padding:2px 8px;border-radius:5px;background:var(--bg-soft);color:var(--txt-2);border:1px solid var(--line);}
+.issue-no{margin-left:auto;font-size:11.5px;color:var(--txt-3);font-variant-numeric:tabular-nums;}
+.issue-name{font-size:13.5px;font-weight:650;margin-bottom:6px;}
+.quote{
+  background:var(--bg-inset);border:1px dashed var(--line-strong);border-radius:6px;
+  padding:7px 9px;font-size:13px;color:var(--txt-2);word-break:break-word;margin-bottom:8px;
+}
+.quote-ctx{
+  display:block;margin-top:5px;padding-top:5px;
+  border-top:1px dashed var(--line);color:var(--txt-3);font-size:12.2px;
+}
+.issue dl{margin:0;font-size:12.8px;}
+.issue dt{color:var(--txt-3);font-size:11.5px;font-weight:600;letter-spacing:.03em;margin-top:7px;}
+.issue dd{margin:2px 0 0;color:var(--txt-2);line-height:1.72;}
+.issue dd.fix{color:var(--brand-d);}
+.laws{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
+.laws summary{cursor:pointer;font-size:12px;color:var(--brand);user-select:none;}
+.laws ul{margin:7px 0 0;padding-left:0;list-style:none;}
+.laws li{font-size:12px;color:var(--txt-2);margin-bottom:7px;line-height:1.65;}
+.laws li b{color:var(--txt);display:block;}
+.down-note{font-size:11.5px;color:var(--brand-d);background:var(--brand-l);border:1px solid #cfe6df;border-radius:5px;padding:4px 7px;margin-top:7px;}
+.cases{margin-top:8px;padding:8px 10px;background:var(--bg-inset,#ecfdf3);border:1px solid var(--line);border-radius:6px;}
+.cases .cases-h{font-size:12px;font-weight:600;color:var(--txt-2);margin-bottom:4px;}
+.cases ul{margin:0;padding-left:18px;}
+.cases li{font-size:11.5px;color:var(--txt-2);line-height:1.6;margin-bottom:3px;}
+.ext-tag{display:inline-block;font-size:10.5px;color:#9a6b00;background:#fff4d6;border:1px solid #f0d28a;border-radius:4px;padding:1px 5px;margin-left:6px;}
+.issue-actions{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
+
+.note-item{
+  border:1px solid var(--line);border-left:4px solid var(--brand);
+  background:var(--brand-l);border-radius:var(--radius-s);padding:11px 12px;
+  font-size:12.8px;color:var(--txt-2);margin-top:10px;
+}
+.note-item b{display:block;color:var(--brand-d);font-size:13px;margin-bottom:5px;}
+.note-item dl{margin:7px 0 0;}
+.note-item dt{font-size:11.5px;color:var(--txt-3);font-weight:600;margin-top:6px;}
+.note-item dd{margin:2px 0 0;}
+.empty{font-size:13px;color:var(--txt-3);text-align:center;padding:22px 0;}
+
+/* ---------- 整体建议 ---------- */
+.fixlist{margin:0;padding-left:20px;font-size:13.2px;color:var(--txt-2);}
+.fixlist li{margin-bottom:9px;line-height:1.75;}
+.fixlist b{color:var(--txt);}
+.fixlist .fc{font-size:11.5px;color:var(--txt-3);}
+
+.badge-count{
+  display:inline-block;font-size:11.5px;background:var(--bg-soft);color:var(--txt-3);
+  border-radius:999px;padding:1px 8px;font-weight:600;
+}
+
+/* ---------- 表单 ---------- */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.field>span{font-size:12.2px;color:var(--txt-2);font-weight:600;}
+.field>span em{color:var(--high);font-style:normal;}
+.field.span2{grid-column:1 / -1;}
+/* 举报信已改为全宽区块，桌面端用三列避免输入框被拉得过宽 */
+@media (min-width:961px){
+  #letterCard .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+.field textarea{font-size:13px;line-height:1.7;}
+.inline-opts{display:flex;gap:18px;flex-wrap:wrap;padding-top:2px;}
+.form-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.tiny{font-size:11.8px;color:var(--txt-3);line-height:1.6;}
+.warn-line{margin-top:9px;color:var(--mid);}
+#letterOut{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;}
+
+/* ---------- 页脚 ---------- */
+.footer{padding:6px 18px 34px;}
+.footer p{font-size:12px;color:var(--txt-3);line-height:1.8;margin-bottom:6px;}
+.footer strong{color:var(--txt-2);}
+
+/* ---------- 弹窗 ---------- */
+.modal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:18px;}
+.modal-mask{position:absolute;inset:0;background:rgba(14,32,28,.42);}
+.modal-box{
+  position:relative;background:#fff;border-radius:14px;max-width:560px;width:100%;
+  box-shadow:0 22px 60px rgba(10,30,26,.28);max-height:86vh;display:flex;flex-direction:column;
+}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--line);}
+.modal-head h3{font-size:15.5px;}
+.icon-btn{background:transparent;border:0;font-size:24px;line-height:1;color:var(--txt-3);cursor:pointer;padding:0 4px;}
+.icon-btn:hover{color:var(--txt);}
+.modal-body{padding:14px 18px;overflow:auto;font-size:13.2px;color:var(--txt-2);}
+.modal-body p{margin-bottom:10px;line-height:1.8;}
+.modal-body strong{color:var(--txt);}
+.modal-foot{padding:12px 18px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;}
+
+/* ---------- Toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+  background:rgba(22,33,31,.94);color:#fff;font-size:13px;
+  padding:9px 18px;border-radius:999px;z-index:120;box-shadow:0 8px 24px rgba(0,0,0,.2);
+}
+
+/* ---------- 打印 ---------- */
+.print-area{display:none;}
+@media print{
+  body{background:#fff;}
+  .topbar,.disclaimer-bar,.col-main,.col-side,.footer,.toast,.modal,#letterCard{display:none !important;}
+  .print-area{display:block;padding:0 4mm;}
+  .print-area pre{
+    font-family:"Songti SC","SimSun",serif;font-size:12pt;line-height:1.9;
+    white-space:pre-wrap;word-break:break-word;margin:0;color:#000;
+  }
+  @page{margin:20mm 18mm;}
+}
+
+/* ---------- 移动端 ---------- */
+@media (max-width:960px){
+  .layout{grid-template-columns:1fr;}
+  .brand-txt h1{font-size:15.5px;}
+  .brand-txt p{display:none;}
+  .pill-local{font-size:11.5px;padding:4px 9px;}
+  .form-grid{grid-template-columns:1fr;}
+  .marked{max-height:none;}
+  .issues{max-height:none;}
+  .catbar .cb-name{flex:0 0 88px;}
+  #guideCard{order:8;}
+}
+@media (max-width:560px){
+  .wrap{padding:0 12px;}
+  .card{padding:13px 12px 15px;border-radius:10px;}
+  .topbar-inner{padding-top:10px;padding-bottom:10px;gap:9px;}
+  .topbar{position:static;}
+  .logo{width:34px;height:34px;flex-basis:34px;}
+  .brand-txt h1{font-size:14.5px;}
+  .layout{gap:14px;padding-top:14px;}
+  .col-main,.col-side{gap:14px;}
+  .btn{font-size:13px;padding:8px 12px;}
+  .card-foot{gap:9px;}
+  .foot-left{width:100%;}
+  .card-foot .btn-primary{width:100%;}
+  .form-actions .btn{flex:1;}
+  .select{width:100%;flex:1 0 100%;}
+  .score{width:72px;height:72px;flex-basis:72px;}
+  .score b{font-size:20px;}
+  .marked{font-size:14px;line-height:1.95;padding:11px;}
+}
+@media (max-width:400px){
+  .catbar{gap:6px;}
+  .catbar .cb-name{flex:0 0 76px;font-size:12px;}
+  .catbar .cb-num{flex:0 0 28px;font-size:11px;}
+  .p-tag{margin-left:0;}
+}
+
+/* ===== 鉴别原则板块 ===== */
+.principles-card{margin:0;}
+.principles-card .intro{font-size:13px;line-height:1.75;color:var(--txt-3);margin:4px 0 16px;}
+.principles-card .intro b{color:var(--txt-2);}
+.principles-card .p-placeholder{font-size:13px;line-height:1.7;color:var(--txt-3);background:#f7f7f5;border:1px dashed #d8d8d2;border-radius:8px;padding:14px 16px;margin:4px 0 0;}
+.p-list{display:grid;gap:13px;}
+.p-item{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;background:var(--bg-card);}
+.p-head{display:flex;align-items:center;gap:10px;margin-bottom:2px;flex-wrap:wrap;}
+.p-no{flex:0 0 27px;height:27px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
+.p-title{font-size:15px;font-weight:600;color:var(--txt);}
+.p-tag{margin-left:auto;font-size:11.5px;padding:3px 10px;border-radius:20px;font-weight:500;white-space:nowrap;}
+.p-tag.ok{background:var(--brand-l);color:var(--brand-d);}
+.p-tag.ext{background:var(--mid-bg);color:var(--mid);}
+.p-points{margin:8px 0 0;padding-left:20px;}
+.p-points li{font-size:13px;line-height:1.75;color:var(--txt-2);margin:2px 0;}
+.p-points li b{color:var(--brand-d);}
+.p-eg{font-size:12.6px;line-height:1.7;color:var(--high);background:var(--high-bg);border-left:3px solid var(--high-bd);padding:7px 11px;border-radius:0 6px 6px 0;margin-top:8px;}
+.p-eg b{color:var(--high);}
+.p-map{font-size:12.4px;color:var(--txt-3);margin-top:9px;line-height:1.7;}
+.p-map code{background:var(--bg-soft);padding:1px 6px;border-radius:5px;color:var(--txt-2);font-size:12px;}
+
+/* ===== 举报引导板块 ===== */
+.guide-card .intro{font-size:13px;line-height:1.8;color:var(--txt-3);margin:4px 0 14px;}
+.guide-card .intro b{color:var(--brand-d);}
+.path-rec{border:1px solid var(--brand);background:var(--brand-l,#ecfdf3);border-left:4px solid var(--brand);border-radius:var(--radius);padding:11px 14px;margin:4px 0 12px;font-size:13.5px;line-height:1.85;color:var(--txt);}
+.path-rec b{color:var(--brand-d);}
+.pr-tag{display:inline-block;font-size:11.5px;font-weight:700;color:#fff;background:var(--brand);border-radius:4px;padding:1px 7px;margin-right:7px;vertical-align:1px;}
+.pathway.pw-hidden{display:none;}
+.guide-card.all-paths .pathway{display:block;}
+.link-btn{display:inline-block;margin:2px 0 12px;padding:5px 12px;font-size:12.5px;color:var(--brand-d);background:var(--bg-card);border:1px solid var(--brand);border-radius:var(--radius);cursor:pointer;}
+.link-btn:hover{background:var(--brand);color:#fff;}
+.guide-sec{margin-top:16px;}
+.guide-sec > h3{font-size:14.5px;font-weight:600;color:var(--txt);margin:0 0 9px;padding-left:10px;border-left:4px solid var(--brand);}
+.pathway{border:1px solid var(--line);border-radius:var(--radius);padding:11px 14px;margin:9px 0;background:var(--bg-card);}
+.pathway .pt-title{font-weight:600;font-size:13.5px;color:var(--txt);}
+.pathway .pt-title b{color:var(--brand-d);}
+.pathway .pt-body{font-size:13px;line-height:1.7;color:var(--txt-2);margin-top:5px;}
+.pathway .pt-body .hot{color:var(--high);font-weight:600;}
+.guide-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.guide-tbl{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.6px;min-width:520px;}
+.guide-tbl th,.guide-tbl td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;line-height:1.6;}
+.guide-tbl th{background:var(--brand-l);color:var(--brand-d);font-weight:600;white-space:nowrap;}
+.guide-tbl td b{color:var(--high);}
+.guide-note{font-size:12.6px;line-height:1.75;color:var(--txt-2);margin:6px 0;}
+.guide-note b{color:var(--txt);}
+
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部 ===== -->
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21c0-6 3-10 8-11-1 6-4 9-8 11z"/>
+          <path d="M12 21C9 17 5 15 3 10c4 0 7 3 9 11z"/>
+          <path d="M12 21v-6"/>
+        </svg>
+      </span>
+      <div class="brand-txt">
+        <h1>漂绿表述识别与举报信助手</h1>
+        <p>企业宣传 · 产品包装 · ESG 报告段落的合规性自查工具</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="pill pill-local" title="本工具为纯静态页面，所有分析在浏览器本地完成，不发送任何网络请求">
+        <span class="dot"></span>纯本地处理 · 不上传
+      </span>
+      <button class="btn btn-ghost" id="btnDisclaimer" type="button">免责声明</button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== 免责横幅 ===== -->
+<div class="disclaimer-bar" id="disclaimerBar">
+  <div class="wrap disclaimer-inner">
+    <strong>免责声明：</strong>本工具基于关键词与规则的启发式筛查，结果<strong>仅为辅助分析，不构成法律意见，也不保证举报成立</strong>。所有结论需经人工复核后方可使用。
+    <button class="btn btn-mini" id="btnDismissBar" type="button">我知道了</button>
+  </div>
+</div>
+
+<!-- ===== 主体 ===== -->
+<main class="wrap layout">
+
+  <!-- ---------- 左：输入 + 高亮 ---------- -->
+  <div class="col-main">
+
+    <section class="card">
+      <div class="card-head">
+        <h2><span class="step">1</span>粘贴待检文本</h2>
+        <span class="counter"><span id="charCount">0</span> / 5000 字</span>
+      </div>
+      <textarea id="inputText" maxlength="5000" rows="12"
+        placeholder="请粘贴广告语、电商详情页文案、产品包装文字、ESG 报告段落等（5000 字以内）。
+
+示例：
+XX牌全效洗衣液，行业首创绿色科技，国家级环保认证，纯天然植物萃取，不含任何化学成分……"></textarea>
+      <div class="card-foot">
+        <div class="foot-left">
+          <button class="btn btn-mini" id="btnSample" type="button">载入示例</button>
+          <button class="btn btn-mini" id="btnClear" type="button">清空</button>
+          <label class="chk"><input type="checkbox" id="chkAutosave" checked> 本地保存草稿</label>
+        </div>
+        <button class="btn btn-primary" id="btnAnalyze" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          开始识别
+        </button>
+      </div>
+    </section>
+
+    <section class="card" id="highlightCard" hidden>
+      <div class="card-head">
+        <h2><span class="step">2</span>原文标注</h2>
+        <div class="legend">
+          <span class="lg lg-high">高风险</span>
+          <span class="lg lg-mid">中风险</span>
+          <span class="lg lg-low">低风险</span>
+        </div>
+      </div>
+      <p class="hint">下方原文中，<b>带颜色底纹的词组</b>为本次命中的可疑表述，底色对应风险等级（高/中/低）；点击高亮片段可跳转至右侧对应条目。</p>
+      <div class="marked" id="markedText"></div>
+    </section>
+
+    <section class="card" id="suggestCard" hidden>
+      <div class="card-head">
+        <h2><span class="step">3</span>整体修改建议</h2>
+        <button class="btn btn-mini" id="btnCopyFix" type="button">复制全部建议</button>
+      </div>
+      <ol class="fixlist" id="fixList"></ol>
+    </section>
+  </div>
+
+  <!-- ---------- 右：结果 + 举报信 ---------- -->
+  <div class="col-side">
+
+    <section class="card" id="overviewCard" hidden>
+      <div class="card-head"><h2><span class="step">4</span>风险总览</h2></div>
+      <div class="overview" id="overview"></div>
+      <div class="catbars" id="catBars"></div>
+    </section>
+
+    <section class="card" id="issuesCard" hidden>
+      <div class="card-head">
+        <h2><span class="step">5</span>问题清单 <span class="badge-count" id="issueCount">0</span></h2>
+        <button class="btn btn-mini" id="btnCopyIssues" type="button">复制清单</button>
+      </div>
+      <div class="filters">
+        <div class="chip-row" id="riskFilter">
+          <button class="chip is-on" data-risk="all" type="button">全部</button>
+          <button class="chip" data-risk="高" type="button">高 <i id="cHigh">0</i></button>
+          <button class="chip" data-risk="中" type="button">中 <i id="cMid">0</i></button>
+          <button class="chip" data-risk="低" type="button">低 <i id="cLow">0</i></button>
+        </div>
+        <select id="catFilter" class="select">
+          <option value="all">所有类别</option>
+        </select>
+      </div>
+      <div class="issues" id="issueList"></div>
+      <div id="notesBox"></div>
+    </section>
+
+    <section class="card guide-card" id="guideCard">
+      <div class="card-head"><h2><span class="step">6</span>举报引导 · 维权路径</h2></div>
+      <div class="path-rec" id="pathRec" hidden></div>
+      <button type="button" class="link-btn" id="btnTogglePaths">查看其他维权路径 ▾</button>
+      <p class="intro">发现漂绿后，可按下列情形选择维权途径。<b>普通消费者最便捷的路径是通过 12315 平台向市场监督管理部门投诉举报</b>——无需律师、无需费用，只需保存好证据即可启动。</p>
+
+      <div class="guide-sec">
+        <h3>一、行政投诉举报（门槛最低、最常用）</h3>
+        <div class="pathway" data-path="market">
+          <div class="pt-title">1. 向市场监督管理部门投诉举报</div>
+          <div class="pt-body">漂绿最常见的形式是虚假环保宣传，直接落入市场监管部门管辖。法律依据：《广告法》第二十八条（虚假广告）、《反不正当竞争法》第八条（虚假宣传）、《消费者权益保护法》第二十条（信息真实全面）。<br>渠道：<span class="hot">全国 12315 平台</span>（网站 www.12315.cn、APP、微信小程序）或拨打 <span class="hot">12315</span> 热线；也可拨打 <span class="hot">12345</span> 政务服务便民热线由平台分流。</div>
+        </div>
+        <div class="pathway" data-path="eco">
+          <div class="pt-title">2. 向生态环境部门举报</div>
+          <div class="pt-body">涉及环境监测数据造假、排污数据造假等，可向生态环境部门举报。渠道：拨打 <span class="hot">12369</span> 环保举报热线（部分地区已并入 12345），或通过"12369 环保举报"微信平台。</div>
+        </div>
+        <div class="pathway" data-path="csrc">
+          <div class="pt-title">3. 向证券监管部门举报</div>
+          <div class="pt-body">上市公司在 ESG 报告、年报中作出虚假或误导性环境信息披露的，可向中国证监会举报。渠道：拨打 <span class="hot">12386</span> 证监会热线，或通过证监会官网"举报专栏"提交。背景：2025 年中国人民银行、金融监管总局、证监会已联合发布《绿色项目金融支持目录》统一绿色金融标准；上海金融法院亦明确打击涉碳排放数据造假等环境信息虚假陈述，遏制资本市场"洗绿""漂绿"。</div>
+        </div>
+        <div class="pathway" data-path="esg">
+          <div class="pt-title">4. 向 ESG 评级机构举报</div>
+          <div class="pt-body">部分 ESG 评级机构已设专门漂绿举报通道，例如华证指数已正式设立 ESG 防漂绿专项举报邮箱，面向全市场常态化接受漂绿线索反馈。</div>
+        </div>
+      </div>
+
+      <div class="guide-sec">
+        <h3>二、民事诉讼（追究赔偿的途径）</h3>
+        <div class="pathway" data-path="market court">
+          <div class="pt-title">1. 消费欺诈诉讼</div>
+          <div class="pt-body">因漂绿宣传购买产品的消费者可提起消费欺诈诉讼。依据《消费者权益保护法》第五十五条第一款，经营者欺诈的，消费者可主张<b>三倍赔偿</b>（不足五百元按五百元）。路径：协商 → 投诉 → 仍无法解决可向法院提起民事诉讼；多名受害者可考虑集体诉讼分摊成本。</div>
+        </div>
+        <div class="pathway" data-path="csrc court">
+          <div class="pt-title">2. 证券虚假陈述诉讼</div>
+          <div class="pt-body">投资者因上市公司 ESG 信息披露造假遭受损失的，可提起证券虚假陈述民事赔偿诉讼。</div>
+        </div>
+        <div class="pathway" data-path="court">
+          <div class="pt-title">3. 环境污染侵权诉讼</div>
+          <div class="pt-body">漂绿行为涉及实际环境污染（如一边宣传"绿色"一边超标排污），受损害的个人可直接提起环境污染侵权诉讼。</div>
+        </div>
+      </div>
+
+      <div class="guide-sec">
+        <h3>三、公益诉讼（特定主体可提起）</h3>
+        <div class="pathway" data-path="court">
+          <div class="pt-title">1. 环境民事公益诉讼</div>
+          <div class="pt-body">原告资格：依法在设区的市级以上人民政府民政部门登记、专门从事环境保护公益活动连续五年以上且无违法记录的社会组织；检察院也可提起。依据《民事诉讼法》第五十八条。</div>
+        </div>
+        <div class="pathway" data-path="court">
+          <div class="pt-title">2. 消费民事公益诉讼</div>
+          <div class="pt-body">原告资格：限定为中国消费者协会和省级消费者协会，普通消费者个人不具备公益诉讼原告资格。</div>
+        </div>
+      </div>
+
+      <div class="guide-sec">
+        <h3>四、维权路径选择指南</h3>
+        <div class="guide-tbl-wrap">
+          <table class="guide-tbl">
+            <thead><tr><th>情形</th><th>推荐路径</th><th>关键动作</th></tr></thead>
+            <tbody>
+              <tr><td>看到虚假环保广告（如"碳中和认证"但无认证编号）</td><td><b>12315 投诉举报</b></td><td>保存广告截图、链接</td></tr>
+              <tr><td>购买了宣称"环保"但实际不环保的产品</td><td><b>12315 投诉 + 消费欺诈诉讼</b></td><td>保留购买凭证、宣传页面</td></tr>
+              <tr><td>上市公司 ESG 报告数据造假</td><td><b>12386 向证监会举报</b></td><td>保存 ESG 报告原文、对比数据</td></tr>
+              <tr><td>企业环境数据造假、超标排污</td><td><b>12369 向生态环境部门举报</b></td><td>保存监测数据、照片等证据</td></tr>
+              <tr><td>购买了 ESG 基金但发现名不副实</td><td><b>12386 举报 + 民事诉讼</b></td><td>保存基金宣传材料、持仓信息</td></tr>
+              <tr><td>发现漂绿线索但不确定找谁</td><td><b>12345 热线</b></td><td>由平台统一分流</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="guide-sec">
+        <h3>五、维权的核心要点</h3>
+        <p class="guide-note"><b>1. 证据至关重要。</b>无论哪种途径，都需保存：宣传页面截图（含时间戳）、产品包装照片、购买凭证（订单截图/发票）、ESG 报告或年报原文、与商家沟通记录。</p>
+        <p class="guide-note"><b>2. 举报材料应规范。</b>向市场监管部门投诉举报时，应提供真实身份信息、明确的被投诉人、具体的投诉请求和事实依据。</p>
+        <p class="guide-note"><b>3. 知晓维权成本。</b>行政投诉举报成本最低（仅整理材料、提交平台）；消费欺诈诉讼需承担诉讼费与时间成本，但可获三倍赔偿；公益诉讼个人不能提起，需联系符合条件的环保组织或消费者协会。</p>
+        <p class="guide-note"><b>总结：</b>普通人发现漂绿，最便捷是通过 12315 向市场监管部门投诉举报；已购买产品并受损的，可在投诉同时考虑消费欺诈诉讼主张三倍赔偿。这两条路径共同构成普通人维权的"低门槛"通道。</p>
+      </div>
+    </section>
+
+  </div>
+  <section class="card col-full" id="letterCard" hidden>
+    <div class="card-head">
+      <h2><span class="step">7</span>举报信生成</h2>
+    </div>
+    <p class="hint" id="letterHint">请先完成文本识别，系统将自动带入涉嫌违法表述。</p>
+
+    <div class="form-grid" id="letterForm" hidden>
+      <label class="field span2">
+        <span>举报类型 / 受理途径</span>
+        <select id="fPath">
+          <option value="market">市场监管投诉（12315 / 12345）— 虚假环保宣传</option>
+          <option value="eco">生态环境举报（12369 / 12345）— 排污 / 监测数据造假</option>
+          <option value="csrc">证监会举报（12386）— 上市公司 ESG / 年报虚假陈述</option>
+          <option value="esg">ESG 评级机构举报（华证指数防漂绿专项举报邮箱）— ESG 披露质疑</option>
+          <option value="court">法院诉讼（消费欺诈三倍赔偿）— 已购买受损</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>受理机关</span>
+        <input type="text" id="fOrg" value="XX市市场监督管理局" placeholder="如：北京市朝阳区市场监督管理局">
+      </label>
+      <label class="field">
+        <span>举报人姓名</span>
+        <input type="text" id="fName" placeholder="张三">
+      </label>
+      <label class="field">
+        <span>联系电话</span>
+        <input type="text" id="fPhone" placeholder="138********">
+      </label>
+      <label class="field">
+        <span>通讯地址</span>
+        <input type="text" id="fAddr" placeholder="用于接收处理结果告知">
+      </label>
+      <label class="field">
+        <span>被举报主体名称 <em>*</em></span>
+        <input type="text" id="fBiz" placeholder="XX 电子商务有限公司">
+      </label>
+      <label class="field">
+        <span>统一社会信用代码</span>
+        <input type="text" id="fCode" placeholder="91XXXXXXXXXXXXXXXX">
+      </label>
+      <label class="field span2">
+        <span>住所 / 经营场所</span>
+        <input type="text" id="fBizAddr" placeholder="XX 省 XX 市 XX 区 XX 路 XX 号">
+      </label>
+      <label class="field span2">
+        <span>涉案宣传载体</span>
+        <input type="text" id="fMedium" placeholder="如：天猫店铺「XX 旗舰店」商品详情页 / 产品外包装 / 线下门店海报">
+      </label>
+      <label class="field span2">
+        <span>购买 / 发现时间</span>
+        <input type="text" id="fWhen" placeholder="如：2026 年 7 月 15 日于该店铺购买，实付 ¥89.00">
+      </label>
+
+      <label class="field span2">
+        <span>涉嫌违法表述（可编辑，一行一条，留空行系统自动忽略）</span>
+        <textarea id="fClaims" rows="7" placeholder="完成识别后自动生成"></textarea>
+      </label>
+
+      <label class="field span2">
+        <span>举报诉求（可编辑）</span>
+        <textarea id="fDemands" rows="6"></textarea>
+      </label>
+
+      <label class="field span2">
+        <span>证据清单（可编辑）</span>
+        <textarea id="fEvidence" rows="7"></textarea>
+      </label>
+
+      <div class="field span2 inline-opts">
+        <label class="chk"><input type="checkbox" id="optLow"> 举报信中纳入低风险条目</label>
+        <label class="chk"><input type="checkbox" id="optNotes" checked> 附法律依据全文</label>
+      </div>
+
+      <div class="form-actions span2">
+        <button class="btn btn-primary" id="btnGenLetter" type="button">生成 / 刷新举报信</button>
+        <span class="tiny" id="letterStat"></span>
+      </div>
+    </div>
+
+    <div id="letterOut" hidden>
+      <label class="field">
+        <span>举报信草稿（可直接编辑）</span>
+        <textarea id="letterText" rows="22" class="mono"></textarea>
+      </label>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btnCopyLetter" type="button">复制全文</button>
+        <button class="btn" id="btnDownload" type="button">下载 TXT</button>
+        <button class="btn" id="btnPrint" type="button">打印 / 存为 PDF</button>
+      </div>
+      <p class="tiny warn-line">提交前请核对主体名称、事实经过与证据，并删除不适用的条款与段落。本草稿不构成法律意见。</p>
+    </div>
+  </section>
+
+<!-- ===== 鉴别原则（方法论） ===== -->
+<section class="card principles-card col-full">
+  <div class="card-head"><h2>鉴别漂绿的六项原则</h2></div>
+  <p class="intro">本工具依据以下六项原则识别漂绿。原则 <b>1–4</b> 针对"文本表述"本身，可由关键词与规则引擎直接判定；原则 <b>5–6</b> 涉及企业实际行为与信息披露，需结合企业合规核查（外部数据库）才能完整判定，是当前版本的拓展方向。</p>
+  <div class="p-list">
+    <p class="p-placeholder" id="pPlaceholder">请先粘贴待检文本并点击"开始识别"，系统将只列出与本次文本相关的鉴别原则。</p>
+
+    <div class="p-item" data-p="1" hidden>
+      <div class="p-head"><span class="p-no">1</span><span class="p-title">是否避免笼统声称</span><span class="p-tag ok">文本可识别</span></div>
+      <ul class="p-points">
+        <li>企业应避免只做一般性环境声称，如仅提“环境友好”“绿色产品”“可持续”等，却<b>无具体说明与数据支撑</b>。</li>
+      </ul>
+      <div class="p-eg"><b>漂绿举例：</b>包装标注“绿色产品”，但未说明包含哪些绿色指标、数据。</div>
+      <div class="p-map">对应规则类别：<code>模糊笼统</code></div>
+    </div>
+
+    <div class="p-item" data-p="2" hidden>
+      <div class="p-head"><span class="p-no">2</span><span class="p-title">是否明确</span><span class="p-tag ok">文本可识别</span></div>
+      <ul class="p-points">
+        <li><b>不避重就轻</b>：不得故意遗漏、隐藏或缩小产品的环境影响。</li>
+        <li><b>不以偏概全</b>：若声明仅针对产品或包装的一部分，应明确指出是哪一部分。</li>
+        <li><b>不牵强附会</b>：视觉元素不给人错误印象，不使用看似可信却无依据的图像。</li>
+        <li><b>比较公平</b>：数据表达不得夸大。</li>
+      </ul>
+      <div class="p-eg"><b>漂绿举例：</b>包装仅使用 10% 回收塑料，却宣传“包装由回收塑料制成”。</div>
+      <div class="p-map">对应规则类别：<code>以偏概全</code> · <code>误导性对比</code> · <code>绝对化用语</code> · <code>伪科学概念</code></div>
+    </div>
+
+    <div class="p-item" data-p="3" hidden>
+      <div class="p-head"><span class="p-no">3</span><span class="p-title">是否覆盖全生命周期</span><span class="p-tag ok">文本可识别</span></div>
+      <ul class="p-points">
+        <li>环境声称应考虑原材料获取、生产、流通、消费、废弃等<b>全生命周期</b>；若仅适用于部分环节，须明确告知消费者。</li>
+      </ul>
+      <div class="p-eg"><b>漂绿举例：</b>电子产品仅在生产环节碳减排 33%，却宣传“碳排放量减少 33%”。</div>
+      <div class="p-map">对应规则类别：<code>以偏概全</code></div>
+    </div>
+
+    <div class="p-item" data-p="4" hidden>
+      <div class="p-head"><span class="p-no">4</span><span class="p-title">是否有证据支持</span><span class="p-tag ok">文本可识别</span></div>
+      <ul class="p-points">
+        <li>环境声称不能自说自话，应有<b>准确、可再现、及时更新</b>的证据（检测报告、证书、标准号等）。</li>
+      </ul>
+      <div class="p-eg"><b>漂绿举例：</b>产品标注“碳中和”，但第三方认证证书已经失效。</div>
+      <div class="p-map">对应规则类别：<code>无法验证的数据</code> · <code>无依据的认证标识</code></div>
+    </div>
+
+    <div class="p-item" data-p="5" hidden>
+      <div class="p-head"><span class="p-no">5</span><span class="p-title">是否存在重大生态环境违法违规行为</span><span class="p-tag ext">需企业合规核查</span></div>
+      <ul class="p-points">
+        <li>守法是底线：企业不宜明面上享受绿色金融、税收优惠或声称获得绿色称号、奖项，暗地里却因<b>重大生态环境违法违规</b>受罚。</li>
+      </ul>
+      <div class="p-eg"><b>漂绿举例：</b>一家“绿色矿山”企业在开采中因违法占地被罚款，罚金达百万元。</div>
+      <div class="p-map">说明：本项涉及企业实际行为，纯文本引擎无法判定，需接入企查查 / 行政处罚等外部数据库（属后续规划能力）。<b>特别适用于 ESG 报告 / 企业披露的合规核查。</b></div>
+    </div>
+
+    <div class="p-item" data-p="6" hidden>
+      <div class="p-head"><span class="p-no">6</span><span class="p-title">是否选择性披露</span><span class="p-tag ext">需企业合规核查</span></div>
+      <ul class="p-points">
+        <li>企业应<b>完整、可追溯</b>地披露生态环境违法等信息，避免不报、瞒报或避重就轻披露。</li>
+      </ul>
+      <div class="p-eg"><b>漂绿举例：</b>可再生能源企业在年报、可持续发展报告、官网声称绿色表现，却隐瞒对环境有危害的信息，甚至不披露环境违法违规行为。</div>
+      <div class="p-map">说明：部分“转移视线”式宣称可由<code>无关宣称</code>规则识别，但完整核查需结合外部数据库。<b>特别适用于 ESG 报告 / 企业披露的合规核查。</b></div>
+    </div>
+
+  </div>
+</section>
+</main>
+
+<footer class="footer wrap">
+  <p><strong>免责声明</strong>：本工具为纯静态页面，全部计算在您的浏览器本地完成，<strong>不会向任何服务器上传文本</strong>（"本地保存草稿"仅写入浏览器自身的 localStorage）。识别结果为基于关键词与规则的启发式筛查，<strong>仅供辅助分析、不构成法律意见，不保证举报成立或行政机关予以立案</strong>。法条序号可能随法律修订而变化，请以现行有效文本为准。因使用本工具产生的任何后果由使用者自行承担。</p>
+  <p class="tiny">规则参考：GB/T 24021（ISO 14021）自我环境声明原则 · 《广告法》《反不正当竞争法》《消费者权益保护法》相关条款</p>
+</footer>
+
+<!-- ===== 免责声明弹窗 ===== -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-mask" data-close></div>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h3 id="modalTitle">免责声明 · 使用前必读</h3>
+      <button class="icon-btn" data-close type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>1. 仅为辅助分析。</strong>本工具通过关键词与规则匹配进行启发式筛查，输出结果属于"线索提示"，既可能误报（把合规表述标为可疑），也可能漏报（未能识别改写后的表述）。</p>
+      <p><strong>2. 不构成法律意见。</strong>本工具不提供法律意见，也不构成对任何宣传内容违法与否的认定。是否违法，由市场监督管理部门等有权机关依法认定。</p>
+      <p><strong>3. 不保证举报成立。</strong>举报信草稿仅为文字模板，不保证行政机关立案、查处或支持举报诉求。提交前请务必人工核实事实、主体与证据。</p>
+      <p><strong>4. 条款可能变化。</strong>引用的法律条款序号与内容可能随立改废而变化，请以现行有效文本及官方释义为准；涉及具体案件建议咨询律师或当地法律援助机构。</p>
+      <p><strong>5. 数据不出本机。</strong>本页为纯静态页面，无后端、无埋点、无网络请求；"本地保存草稿"仅写入您浏览器自身的 localStorage，清除浏览器数据即可彻底删除。</p>
+      <p><strong>6. 责任自负。</strong>因使用、传播本工具输出内容所产生的一切后果，由使用者自行承担。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" data-close type="button">我已阅读并理解</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 打印区 ===== -->
+<div id="printArea" class="print-area"></div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ============================================================
+ *  rules.js —— "漂绿"表述识别规则库（纯本地运行，无任何网络请求）
+ *
+ *  说明：
+ *  1. 所有规则均为关键词 / 正则匹配，属启发式（heuristic）筛查，
+ *     存在误报与漏报，结果仅供人工复核参考。
+ *  2. risk 字段：高 / 中 / 低，代表"被认定为引人误解宣传的可能性"。
+ *  3. verify = true 的规则支持"出处降档"：若片段附近出现检测报告、
+ *     标准号、证书编号等可核查线索，风险自动下调一级并给出提示。
+ *  4. laws 字段引用下方 LAWS 字典中的法条编号。
+ * ============================================================ */
+(function (global) {
+  'use strict';
+
+  /* --------------------- 法律依据字典 --------------------- */
+  var LAWS = {
+    ad4: {
+      n: '《中华人民共和国广告法》第四条',
+      t: '广告不得含有虚假或者引人误解的内容，不得欺骗、误导消费者。广告主应当对广告内容的真实性负责。'
+    },
+    ad8: {
+      n: '《中华人民共和国广告法》第八条第一款',
+      t: '广告中对商品的性能、功能、产地、用途、质量、价格、生产者、有效期限、允诺等……有表示的，应当准确、清楚、明白。'
+    },
+    ad9: {
+      n: '《中华人民共和国广告法》第九条第（三）项',
+      t: '广告不得有下列情形：……（三）使用"国家级""最高级""最佳"等用语。'
+    },
+    ad11: {
+      n: '《中华人民共和国广告法》第十一条第二款',
+      t: '广告使用数据、统计资料、调查结果、文摘、引用语等引证内容的，应当真实、准确，并表明出处。引证内容有适用范围和有效期限的，应当明确表示。'
+    },
+    ad12: {
+      n: '《中华人民共和国广告法》第十二条',
+      t: '广告中涉及专利产品或者专利方法的，应当标明专利号和专利种类；未取得专利权的，不得在广告中谎称取得专利权。'
+    },
+    ad28: {
+      n: '《中华人民共和国广告法》第四条、第二十八条',
+      t: '广告以虚假或者引人误解的内容欺骗、误导消费者的，构成虚假广告。商品性能、功能、产地、用途、质量等信息与实际情况不符，或者虚构、伪造无法验证的机构荣誉、认证、检测报告等作证明材料的，均属虚假广告情形。'
+    },
+    aucl8: {
+      n: '《中华人民共和国反不正当竞争法》第八条第一款',
+      t: '经营者不得对其商品的性能、功能、质量、销售状况、用户评价、曾获荣誉等作虚假或者引人误解的商业宣传，欺骗、误导消费者；不得通过组织虚假交易等方式帮助其他经营者进行虚假或者引人误解的商业宣传。'
+    },
+    aucl20: {
+      n: '《中华人民共和国反不正当竞争法》第二十条',
+      t: '经营者违反本法第八条规定进行虚假或者引人误解的商业宣传的，由监督检查部门责令停止违法行为，处二十万元以上一百万元以下的罚款；情节严重的，处一百万元以上二百万元以下的罚款，可以吊销营业执照。'
+    },
+    cpl20: {
+      n: '《中华人民共和国消费者权益保护法》第二十条',
+      t: '经营者向消费者提供有关商品或者服务的质量、性能、用途、有效期限等信息，应当真实、全面，不得作虚假或者引人误解的宣传。'
+    },
+    cpl26: {
+      n: '《中华人民共和国消费者权益保护法》第二十六条',
+      t: '经营者不得以格式条款、通知、声明、店堂告示等方式，作出排除或者限制消费者权利、减轻或者免除经营者责任等对消费者不公平、不合理的规定。'
+    },
+    cpl55: {
+      n: '《中华人民共和国消费者权益保护法》第五十五条第一款',
+      t: '经营者提供商品或者服务有欺诈行为的，应当按照消费者的要求增加赔偿其受到的损失，增加赔偿的金额为消费者购买商品的价款或者接受服务的费用的三倍；增加赔偿的金额不足五百元的，为五百元。'
+    },
+    ecom17: {
+      n: '《中华人民共和国电子商务法》第十七条',
+      t: '电子商务经营者应当全面、真实、准确、及时地披露商品或者服务信息，保障消费者的知情权和选择权；不得以虚构交易、编造用户评价等方式进行虚假或者引人误解的商业宣传。'
+    },
+    cert: {
+      n: '《中华人民共和国认证认可条例》关于认证证书与认证标志的规定',
+      t: '未经批准不得擅自从事认证活动；不得伪造、冒用、转让认证证书和认证标志，不得在未经认证的产品或者包装上标注认证标志。具体条款序号以现行有效文本为准。'
+    },
+    greenlabel: {
+      n: '《绿色产品标识使用管理办法》',
+      t: '绿色产品标识的使用应当符合该办法规定，不得误导消费者；未通过绿色产品认证的，不得在产品和包装上使用绿色产品标识。'
+    },
+    iso14021: {
+      n: 'GB/T 24021（等同采用 ISO 14021）《环境管理 环境标志和声明 自我环境声明》',
+      t: '自我环境声明应当准确、可验证、不产生误导，不得含糊笼统；"可降解""可堆肥""可回收""再生成分"等术语的使用均有明确的限定条件，并应说明评价口径与生命周期阶段。'
+    },
+    gb19220: {
+      n: 'GB/T 20197《降解塑料的定义、分类、标志和降解性能要求》',
+      t: '降解塑料应标明降解类型、适用条件与依据标准，不得笼统标注"可降解"。'
+    },
+    packaging: {
+      n: 'GB 23350《限制商品过度包装要求》',
+      t: '商品包装层数、空隙率、成本占比应符合强制性标准，不得借"环保"名义误导消费者对包装合规性的认知。'
+    },
+    civil58: {
+      n: '《中华人民共和国民事诉讼法》第五十八条',
+      t: '对污染环境、侵害众多消费者合法权益等损害社会公共利益的行为，法律规定的机关和有关组织可以向人民法院提起诉讼；人民检察院可以提起公益诉讼。'
+    },
+    sec85: {
+      n: '《中华人民共和国证券法》第八十五条',
+      t: '信息披露义务人披露的信息，应当真实、准确、完整，简明清晰，通俗易懂，不得有虚假记载、误导性陈述或者重大遗漏；证券虚假陈述致使投资者在证券交易中遭受损失的，应当依法承担赔偿责任。'
+    },
+    envprot: {
+      n: '《中华人民共和国环境保护法》第四十二条、第六十三条',
+      t: '排污单位应当按照国家有关规定和监测规范安装使用监测设备，保证监测设备正常运行，保存原始监测记录，不得篡改、伪造或者指使篡改、伪造监测数据；严禁通过不正常运行防治污染设施等方式违法排放污染物。'
+    }
+  };
+
+  /* --------------------- 举报途径配置 --------------------- */
+  var PATHS = {
+    market: {
+      org: 'XX市市场监督管理局',
+      title: '虚假或者引人误解的环保商业宣传（漂绿）',
+      laws: ['ad4', 'ad28', 'aucl8', 'cpl20'],
+      basis: '依据《中华人民共和国广告法》第四条、第二十八条，《反不正当竞争法》第八条第一款，以及《消费者权益保护法》第二十条，经营者不得作虚假或者引人误解的宣传，应当真实、全面提供商品或服务信息。',
+      demands: '1. 依法对被举报人的上述宣传行为进行调查核实，并在法定期限内书面告知是否立案；\n2. 如查证存在虚假或者引人误解的商业宣传，责令其立即停止违法行为、删除违法宣传内容并消除影响；\n3. 依法对被举报人作出行政处罚，并将处罚结果依法公示；\n4. 依法组织消费争议调解，责令被举报人退还货款并依照《消费者权益保护法》第五十五条承担三倍赔偿责任；\n5. 将调查处理结果以书面或电话方式告知举报人。'
+    },
+    eco: {
+      org: 'XX市生态环境局',
+      title: '篡改、伪造环境监测数据或超标排污（与"绿色"宣传不符）',
+      laws: ['envprot', 'ad28', 'aucl8'],
+      basis: '依据《中华人民共和国环境保护法》第四十二条、第六十三条，排污单位不得篡改、伪造监测数据，应如实公开环境信息；以"绿色"名义宣传却存在超标排污或数据造假的，同时涉嫌虚假宣传与违法排污。',
+      demands: '1. 对被举报人排污情况及环境信息披露的真实性进行调查、监测；\n2. 如查实存在篡改监测数据、超标排污或违法排放，依法立案查处并公示；\n3. 将调查处理结果书面告知举报人。'
+    },
+    csrc: {
+      org: '中国证券监督管理委员会XX监管局',
+      title: '在 ESG 报告、年报中作出虚假或误导性环境信息披露',
+      laws: ['sec85', 'cpl20', 'ad28'],
+      basis: '依据《中华人民共和国证券法》第八十五条，信息披露义务人披露的信息应当真实、准确、完整，不得有虚假记载、误导性陈述或重大遗漏；上市公司 ESG / 环境数据造假损害投资者合法权益的，依法承担相应责任。',
+      demands: '1. 对被举报人 ESG 报告、年报中的环境信息披露进行核查；\n2. 如查实存在虚假或误导性披露，依法采取监管措施并公示；\n3. 将核查处理结果书面告知举报人。'
+    },
+    court: {
+      org: 'XX人民法院',
+      title: '消费欺诈损害赔偿',
+      laws: ['cpl55', 'ad28', 'cpl20'],
+      basis: '依据《中华人民共和国消费者权益保护法》第五十五条第一款，经营者提供商品或者服务有欺诈行为的，消费者可主张三倍赔偿（增加赔偿金额不足五百元的，为五百元）。',
+      demands: '1. 判令被告退还原告货款；\n2. 判令被告依《消费者权益保护法》第五十五条向原告支付三倍赔偿金；\n3. 本案诉讼费由被告承担。'
+    }
+  };
+
+  /* --------------------- 规则定义 --------------------- */
+  /* cat 取值：模糊笼统 / 无法验证的数据 / 无依据的认证标识 /
+     误导性对比 / 以偏概全 / 无关宣称 / 绝对化用语 / 伪科学概念 */
+
+  var RULES = [
+    /* ============ 一、模糊笼统（Vague & Empty Claims）============ */
+    {
+      id: 'vague-eco',
+      cat: '模糊笼统',
+      risk: '低',
+      name: '空泛的环保形容词',
+      terms: [
+        '环保', '绿色环保', '环境友好', '环境友好型', '生态友好', '生态环保',
+        '绿色科技', '绿色制造', '绿色升级', '绿色产品', '绿色生活', '绿色未来',
+        '低碳生活', '低碳出行', '低碳环保', '低碳科技',
+        '可持续发展', '可持续性', '对环境友好', '地球友好', '爱护地球',
+        '善待地球', '守护地球', '绿水青山', '循环经济', '生态文明', '绿色革命',
+        '生态设计', 'eco', 'green', 'sustainable', 'eco-friendly', '负责任', '环境责任', '气候友好'
+      ],
+      reason: '使用了含义宽泛、缺乏客观界定标准的环保类形容词（含英文 eco/green/sustainable 等），未说明具体的环保属性、评价维度与衡量方法。消费者无法据此判断该产品真实的环境影响，属于典型的"空泛宣称"。以"生态设计"等标签宣传却未达内部标准（如某产品仅 49% 再生聚酯却标"生态设计"），或以"棉柔"暗示含棉而实际为再生纤维，均属此类。依据 GB/T 24021，自我环境声明应当具体、可验证，不得含糊。',
+      fix: '替换为可量化、可验证的表述，并说明评价边界。例如："本产品外壳再生 ABS 含量 30%（依据 XX 检测机构报告 No.XXX，20XX 年 X 月）"，同时说明是"全生命周期"还是"某一环节"。',
+      laws: ['iso14021', 'ad8', 'cpl20', 'ad28'],
+      cases: [
+        "调查报道|南方周末|2025-11|特步|ESG报告承诺'增加环保聚乳酸产品比例'并发布多款环保概念鞋/风衣，但均为短期/限量发售，官方主流电商渠道无任何在售环保聚乳酸产品，被指'为营销而环保'",
+        "调查报道|南方周末|2025-11|恒安国际|ESG报告构建绿色形象，旗下'心相印''棉柔洁面巾'命名暗示含棉（实际为75%黏胶+25%莱赛尔，不含棉），200万消费者购买，大量消费者质疑命名误导",
+        "调查报道|南方周末|2025-11|迪卡侬|'生态设计'标签在不同门店表述不一（有的仅写'含环保面料'未写比例），部分产品49%再生聚酯却标'生态设计'未达内部70%门槛，荷兰ACM已认定存在误导",
+        "司法案例|美国马里兰州上诉法院|2023-12-20|华盛顿天然气公司|账单上称天然气'清洁、高效、可靠'，被认定可能构成欺骗性宣传，发回重审"
+      ]
+    },
+    {
+      id: 'vague-natural',
+      cat: '模糊笼统',
+      risk: '低',
+      name: '"天然"类无定义宣称',
+      terms: [
+        '纯天然', '100%天然', '百分百天然', '天然成分', '天然配方',
+        '源自自然', '来自大自然', '大自然的馈赠', '植物萃取', '草本配方',
+        '植物精华', '绿色配方', '原生态', '无污染', '纯净无污染',
+        '棉柔', '纯棉', '含棉', '植物纤维', '木纤维', '自然'
+      ],
+      reason: '"天然""纯天然"在现行标准中并无统一定义，天然原料并不必然等于安全或环保。在未说明具体成分、含量及检测依据的情况下使用该表述，易使消费者产生错误认知。尤为典型的是产品名称/标签以"棉柔""纯棉""含棉"暗示含天然纤维，而实际成分为化学再生纤维（如黏胶、莱赛尔）且不含棉，构成对核心材质的误导（实例：恒安"棉柔洁面巾"实为75%黏胶+25%莱赛尔，不含棉，却长期以"棉柔"命名销售）。',
+      fix: '若为化妆品，可按《化妆品标签管理办法》标注具体植物原料的规范名称与添加量；"棉柔"仅形容触感时须在显著位置说明实际成分；删除"纯天然"等无定义表述，或改为"含 XX% 山茶籽油（依据配方核算表）"。',
+      laws: ['ad8', 'cpl20', 'iso14021', 'ad28'],
+      cases: [
+        "调查报道|南方周末|2025-11|恒安国际|'心相印''棉柔洁面巾'实际成分为75%黏胶纤维+25%莱赛尔纤维，完全不含棉，产品在京东洗脸巾热卖榜第一名（200万人购买），大量消费者投诉误导"
+      ]
+    },
+    {
+      id: 'vague-nochemical',
+      cat: '伪科学概念',
+      risk: '中',
+      name: '"不含任何化学成分"等反科学表述',
+      terms: [
+        '不含任何化学成分', '无任何化学成分', '不含化学物质', '零化学',
+        '不含任何添加剂', '绝无添加物', '无毒无害', '绝对安全',
+        '百分之百安全', '完全无副作用'
+      ],
+      reason: '所有物质均由化学元素构成，"不含任何化学成分"在科学上不成立；"无毒无害""绝对安全"属于对安全性作出绝对化、无法验证的承诺。此类表述易构成引人误解的商业宣传。',
+      fix: '删除绝对化表述，改为"未添加 XX 类防腐剂（依据 GB/T XXXX 检测，未检出，检出限 XX mg/kg）"，并注明检测方法与检出限。',
+      laws: ['ad28', 'ad8', 'cpl20']
+    },
+
+    /* ============ 二、无法验证的数据（No Proof / Unverifiable Data）============ */
+    {
+      id: 'data-percent',
+      cat: '无法验证的数据',
+      risk: '高',
+      verify: true,
+      name: '无出处的量化环保数据',
+      res: [
+        /(?:减少|降低|削减|节省|节约|提升|提高|回收|降解|减排|减碳|转化|利用率?|占比|达到|高达|超过|优于|节水|节电|节能|省水|省电)[^。！？；;，,、\n]{0,12}?\d+(?:\.\d+)?\s*(?:%|％|个百分点)(?:[^\d]{0,6}(?:碳排放|碳排|CO2|二氧化碳|能耗|用电|用水|水量|塑料|废弃物|废料|包装))?/g,
+        /\d+(?:\.\d+)?\s*(?:%|％)[^。！？；;，,、\n]{0,8}?(?:可回收|可降解|再生料|再生成分|再生材料|减排|节能|节电|节水|碳减排|清洁能源|绿电)/g,
+        /(?:百分之[一二三四五六七八九十百千零〇\d]+|百分百|百分之百)[^。！？；;，,、\n]{0,8}?(?:可降解|可回收|再生|环保|减排|节能)/g
+      ],
+      reason: '广告使用数据、统计资料应当真实、准确并表明出处（《广告法》第十一条第二款）。该处给出了具体量化数据，但未标注测算口径、检测机构、报告编号与有效期限，属于无法验证的数据，客观上无法由消费者核验。',
+      fix: '补充完整引证信息："数据来源：XX 检测机构《XX 检验报告》（编号 XXX，20XX 年 X 月）"，并注明测算边界（"与 20XX 年同型号产品相比"或"基于全生命周期评价"）。无法提供的，应删除该数据。',
+      laws: ['ad11', 'ad28', 'aucl8']
+    },
+    {
+      id: 'data-absolute',
+      cat: '无法验证的数据',
+      risk: '高',
+      verify: true,
+      name: '绝对化的环境绩效宣称',
+      terms: [
+        '零排放', '零碳', '净零排放', '零污染', '零负担', '零废弃', '零浪费',
+        '100%可降解', '100% 可降解', '百分百可降解', '完全降解', '全降解',
+        '100%回收', '100%可回收', '100%环保', '百分百环保',
+        '零甲醛', '无甲醛', '0甲醛', '零VOC', '零voc', '零voc释放',
+        '碳中和', '实现碳中和', '已实现碳中和', '全线碳中和',
+        '零添加', '0添加', '无添加',
+        '气候中和', 'CO2中性', '气候友好', 'carbon neutral', 'net zero', '0碳', 'klimaneutral',
+        '碳抵消', '碳补偿', '碳信用', '绿色飞行', '环保出行', '净零飞行', '植树'
+      ],
+      reason: '该表述对环境绩效作出了全覆盖、绝对化的承诺。"碳中和/气候中和"需以规范的温室气体核算（如 ISO 14064 / GHG Protocol）、核证机构与公开披露报告为支撑；"100% 可降解"需说明降解条件与依据标准（GB/T 20197）。以"碳抵消"替代"自主减排"、且未披露抵消比例与核算范围时，易使消费者误以为已实现零排放（实例：以万分之一的碳抵消量宣称"碳中和航班"）。缺乏上述支撑即使用，通常构成引人误解的商业宣传。',
+      fix: '说明核算/检测依据与边界，例如："依据 GB/T 20197，在工业堆肥条件（58℃±2℃）下 180 天生物分解率为 92%（报告编号 XXX）"；"碳中和"应披露核算标准、覆盖范围（范围一/二/三）、核证机构、抵消比例与方式，或删除该表述。',
+      laws: ['ad11', 'ad28', 'gb19220', 'iso14021', 'ad8', 'aucl8'],
+      cases: [
+        "司法案例|奥地利林茨地方法院|2023-03-27|布劳联合奥地利股份公司|宣称'CO2中性酿造'但制麦环节使用化石能源且未作区分说明，被认定构成误导",
+        "司法案例|美国加州北区联邦地区法院|2022-06-29|奥地利航空|宣称'100% SAF''碳中和飞行'，实际SAF混合比例仅0.4%且通过'簿记与索赔'账面分配，被认定虚假陈述",
+        "行业自律|澳大利亚广告标准局|2022-09-14|Ampol|'碳中和燃料'完全依赖碳抵消，投诉被驳回（评议团认定目标受众为企业客户且已说明抵消机制）",
+        "司法案例|德国石勒苏益格州高等法院|2022-06-30|某垃圾袋制造商|'气候中和'标识被二审认定不构成误导（包装已说明支持Gold Standard项目，'中和'本身包含抵消含义）",
+        "司法案例|德国法兰克福地方法院|2022-03-17|某清洁用品企业|'气候中立卫生'等表述未同步披露核算范围、排除类别、补偿方式等六类核心信息，被认定隐瞒重要信息",
+        "调查报道|南方周末|2025-11|国航|'净享飞行低碳行'以碳抵消宣称'碳中和航班'，混淆碳抵消与自主减排，抵消量仅占总排放万分之一",
+        "调查报道|南方周末|2025-11|国航|'净享飞行低碳行'1.2万人次抵消2500吨CO₂，国航年排放2279万吨（抵消量仅万分之一），却宣称'相当于150班零碳航班'；京沪线仅需10元抵消，可能激励而非抑制飞行",
+        "司法案例|奥地利科新堡地方法院|2022-06-29|奥地利航空|'100% SAF''碳中和飞行'，实际SAF仅占燃料总量0.4%，通过'簿记与索赔'账面分配，被认定构成误导"
+      ]
+    },
+    {
+      id: 'data-analogy',
+      cat: '无法验证的数据',
+      risk: '中',
+      name: '类比式换算（种树/减汽车）',
+      res: [
+        /(?:相当于|等同于|等于)[^。！？；;，,、\n]{0,12}?(?:种下|种了|种植|栽种|养护)?\s*[\d.]+\s*(?:棵|株|亩|片)?\s*树/g,
+        /(?:相当于|等同于|等于)[^。！？；;，,、\n]{0,12}?减少[^。！？；;，,、\n]{0,8}?(?:汽车|轿车|车辆)/g,
+        /(?:可绕地球|绕地球)[\d.]+圈/g,
+        /(?:拯救|挽救|保护)[\d.]+个?地球/g
+      ],
+      reason: '类比式换算依赖大量假设参数，缺乏统一口径和可比性，容易显著夸大环保效果，且通常无法说明换算模型与参数来源。',
+      fix: '删除类比换算，直接给出可核验的物理量，或补充换算模型的假设条件、参数来源与第三方复核结论。',
+      laws: ['ad11', 'ad8', 'iso14021']
+    },
+
+    /* ============ 三、无依据的认证标识（No Certification / Fake Labels）============ */
+    {
+      id: 'cert-nonumber',
+      cat: '无依据的认证标识',
+      risk: '中',
+      verify: true,
+      name: '未标明编号与机构的认证宣称',
+      terms: [
+        '中国环境标志', '十环认证', '绿色食品', '有机认证', '有机产品',
+        '绿色产品认证', '绿色产品标识', '碳足迹认证', '碳中和认证',
+        '碳标签', '能源之星', 'FSC认证', 'FSC', '森林认证',
+        '环境管理体系认证', 'ISO14001', 'ISO 14001', 'ISO14064',
+        '生态纺织品', 'OEKO-TEX', '蓝天使认证', '北欧白天鹅',
+        '环保认证', '国际认证', '权威认证', '国家认证',
+        '欧盟认证', 'CE认证', 'FDA认证', 'FDA', 'SGS认证',
+        '零碳认证', 'PEFC认证', '产品碳中和', '绿色认证', 'certified', 'approved'
+      ],
+      reason: '宣传中使用了认证、标志或机构名义，但未标明认证机构名称、证书编号与有效期，消费者无从核验；若实际并未取得该认证，则可能构成伪造、冒用认证标志。另需特别注意：以已注销、过期或不再维持的第三方认证（如"产品碳中和认证""零碳认证"）作为持续环保证据，在证书失效后仍继续宣传，同样构成误导（实例：金光集团唯洁雅"零碳纸"认证已注销、清风碳中和证书已过期仍持续宣传；依云水"碳中和认证"自2023年起已不再维持）。',
+      fix: '完整标注"认证机构＋证书编号＋有效期"，或提供可在官方平台查询的证书截图；定期核查证书状态，注销/过期后立即停用相关声称；未获认证的，应立即删除该表述。',
+      laws: ['cert', 'ad28', 'greenlabel', 'iso14021'],
+      cases: [
+        "调查报道|南方周末|2025-11|金光集团（APP中国）|唯洁雅'零碳纸'宣称'产品碳中和认证'，认监委网站显示证书已'注销'；清风卷纸碳中和证书已过期且未再认证，但企业仍持续宣传",
+        "司法案例|美国哥伦比亚特区高等法院|2025-05-23|Danone Waters of America|依云水宣称碳中和认证，实际上自2023年起已不再寻求或维持该认证，被认定可诉，后和解"
+      ]
+    },
+    {
+      id: 'cert-fake',
+      cat: '无依据的认证标识',
+      risk: '高',
+      name: '虚构或已被禁止的认证与荣誉',
+      terms: [
+        '国家免检', '免检产品', '中国名牌', '中国驰名商标', '驰名商标',
+        '特供', '专供', '国家机关专用', '政府推荐', '国家机关推荐',
+        '国际权威机构认证', '联合国认证', '全球认证', '国家级认证',
+        '世界环保组织推荐', '国际环保组织推荐', '国际金奖', '国际大奖',
+        '欧盟标准认证', '国家权威机构', '官方唯一指定'
+      ],
+      reason: '宣传中援引了不存在的认证主体或虚构的权威机构推荐（如"联合国认证""全球认证""国际权威机构认证"），或使用了已被明令停止使用、禁止用于广告宣传的称号（如"国家免检""中国名牌""驰名商标""特供专供"）。此类表述属于虚构荣誉或误导性认证宣称，消费者无从核验，亦可能构成冒用名义。',
+      fix: '立即删除相关表述。若确有荣誉，应写明颁发机构全称、获奖时间与公示链接，并确保该荣誉允许用于商业宣传。',
+      laws: ['ad28', 'aucl8', 'cert']
+    },
+
+    /* ============ 四、误导性对比（Misleading Comparison）============ */
+    {
+      id: 'cmp-superlative',
+      cat: '绝对化用语',
+      risk: '高',
+      name: '《广告法》禁止的绝对化用语',
+      terms: [
+        '国家级', '世界级', '宇宙级', '最高级', '最高端', '最佳', '最好',
+        '最强', '最大', '最优', '最环保', '最绿色', '最安全', '最健康',
+        '最先进', '最高效', '最低碳', '最节能', '第一品牌', '行业第一',
+        '销量第一', '排名第一', '全球第一', '全国第一', '全网第一',
+        '遥遥领先', '行业领先', '全球领先', '绝对领先', '唯一指定',
+        '唯一', '独家', '首创', '开创', '绝无仅有', '史无前例',
+        '无出其右', '顶级', '极致', '完美', '终极', '王牌'
+      ],
+      reason: '该表述属于《广告法》第九条第（三）项所禁止的"国家级""最高级""最佳"等绝对化用语，且缺乏客观、可验证的评判标准与统计口径。此类用语在广告中使用即存在违法风险，不以是否真实为转移。',
+      fix: '删除绝对化用语，改为客观、有出处的事实描述，例如"2025 年 XX 品类市场占有率 18%（数据来源：XX 咨询《XX 报告》）"，并确保数据可核验。',
+      laws: ['ad9', 'ad28', 'ad11']
+    },
+    {
+      id: 'cmp-unclear',
+      cat: '误导性对比',
+      risk: '中',
+      name: '缺乏基准的对比性宣称',
+      res: [
+        /比(?:传统|普通|同类|一般|市面|其他)[^。！？；;，,、\n]{0,10}?(?:更|减少|降低|提升|提高|省|节约|强|优|环保|健康|安全)/g,
+        /(?:较|相较|相比)(?:传统|普通|同类|一般)[^。！？；;，,、\n]{0,10}?(?:更|减少|降低|提升)/g,
+        /(?:大幅|显著|明显|极大地)(?:减少|降低|提升|提高|改善|优于)/g,
+        /(?:优于|远超|胜过|碾压)[^。！？；;，,、\n]{0,6}(?:同类|竞品|其他品牌|传统产品)?/g
+      ],
+      reason: '比较性声明应当明确比较对象、比较指标、测算方法与时间范围（GB/T 24021、《广告法》第八条）。该表述未说明"与谁比""比什么""怎么算"，亦未提供对比依据，易使消费者对比较结果产生错误理解。',
+      fix: '补全比较要素："与本公司 2023 年款 XX 产品相比，单位洗涤量用水量由 42L 降至 30L（依据内部测试报告 XXX，测试方法 GB/T XXXX）"；或直接删除比较性表述。',
+      laws: ['ad8', 'iso14021', 'aucl8']
+    },
+
+    /* ============ 五、以偏概全（Hidden Trade-off / Partial Claim）============ */
+    {
+      id: 'partial-claim',
+      cat: '以偏概全',
+      risk: '中',
+      name: '仅强调局部环保属性（隐藏权衡）',
+      res: [
+        /(?:部分|局部|其中|仅|只有)[^。！？；;，,、\n]{0,8}?(?:可回收|可降解|再生|环保|循环)/g,
+        /(?:瓶身|瓶盖|外壳|外包装|包装盒|包装袋|纸盒|提手|内衬|标签|说明书)[^。！？；;，,、\n]{0,8}?(?:可回收|可降解|再生材料|环保材料|再生塑料)/g,
+        /(?:采用|使用|添加|含有)[^。！？；;，,、\n]{0,12}?(?:再生材料|可回收材料|环保材料|生物基材料)/g
+      ],
+      reason: '仅强调产品的某一部件、某一成分或某一环节的环保属性，而未说明其余部分的情况，属于"隐藏权衡"型漂绿。若该产品整体环境影响显著，此类局部声明会对消费者产生误导（GB/T 24021 要求环境声明不得因片面陈述而产生误导）。',
+      fix: '明确声明适用范围："本声明仅适用于外包装纸盒（占整件产品重量 12%），产品本体暂不可回收。"并提供各部件的材质与回收指引。',
+      laws: ['iso14021', 'ad8', 'cpl20']
+    },
+    {
+      id: 'partial-condition',
+      cat: '以偏概全',
+      risk: '中',
+      name: '未说明条件的"可降解/可回收"',
+      terms: [
+        '可降解', '生物降解', '全生物降解', '可堆肥', '家庭堆肥',
+        '可回收利用', '可回收', '可循环', '循环再生', '再生塑料',
+        '生物基材料', '玉米淀粉材料', '竹纤维', 'PLA材料', 'PLA', 'PBAT', '秸秆材料',
+        'recyclable', '请回收', '可回收材料'
+      ],
+      reason: '"可降解"并非无条件成立：多数生物降解塑料需在工业堆肥条件（特定温度、湿度、微生物环境）下才能在限定时间内降解，在自然环境或填埋条件下往往难以降解；"可回收"还取决于当地是否具备回收体系——若全美/全国仅少数社区能实际接收、分拣并再利用该产品，标注"可回收"即构成误导（实例：Keurig K-Cup 胶囊标注可回收，但多数社区因体积过小、终端市场有限而无法实际回收，法院认定构成欺骗性营销）。未说明"当地是否可接收"等限定条件即使用，易构成误导。',
+      fix: '注明降解条件、时限与依据标准："依据 GB/T 20197，在工业堆肥条件下 180 天生物分解率 ≥ 90%（报告编号 XXX）"；"可回收"应注明"请咨询当地回收机构确认是否接收"并披露实际覆盖率，或提示"按当地回收指引投放"。',
+      laws: ['gb19220', 'iso14021', 'ad8', 'ad28', 'aucl8'],
+      cases: [
+        "司法案例|美国加州北区联邦地区法院|2020-09-21|Keurig Green Mountain|K-Cup咖啡胶囊标注'Recycle'但多数社区无法有效回收（体积过小、终端市场有限），集体认证获批",
+        "司法案例|美国哥伦比亚特区高等法院|2025-02-14|Fresh Del Monte Produce|宣称牛油果'负责任/可持续采购'，被指控实际导致森林砍伐、水资源过度消耗，驳回管辖权异议进入实体审理",
+        "司法案例|美国哥伦比亚特区高等法院|2025-05-23|Danone Waters of America|依云水'碳中和认证''100%可再生能源'宣称，认证已不再维持，被认定可诉，后和解结案",
+        "集体诉讼|美国伊利诺伊北区联邦地区法院|2025-05-28|Procter & Gamble (Charmin/Puffs)|'每伐一树，植树两棵''FSC认证'等宣称被指掩盖供应商皆伐原始森林事实，已进入MDL集中审理"
+      ]
+    },
+
+    /* ============ 六、无关宣称（Irrelevant Claims）============ */
+    {
+      id: 'irr-banned',
+      cat: '无关宣称',
+      risk: '中',
+      name: '强调法规已禁止的成分（无意义宣称）',
+      terms: [
+        '不含氟利昂', '无氟利昂', '无氟', '不含CFC', '无CFC', '不含氟氯烃',
+        '不含石棉', '无石棉', '不含汞', '无汞', '不含铅', '无铅',
+        '无磷', '不含磷', '不含ODS', '不含PFOA', '不含全氟化合物',
+        '不含三聚氰胺', '不含苏丹红', '不含瘦肉精', '不含塑化剂'
+      ],
+      reason: '所宣称"不含"的成分，本已被法律法规或强制性标准禁止使用，属于所有合规产品都必须满足的法定底线。将其作为卖点宣传，易使消费者误认为该产品具有超出法规要求的额外环保或健康优势，属于典型的"无关宣称"。',
+      fix: '删除该类表述，或改为客观合规声明："本产品符合 GB XXXX《XX 标准》要求"（附检测报告编号）。',
+      laws: ['ad8', 'cpl20', 'aucl8']
+    },
+    {
+      id: 'irr-other',
+      cat: '无关宣称',
+      risk: '低',
+      name: '与环保性能无关的主张',
+      terms: [
+        '无动物实验', '零残忍', '纯素配方', '素食友好',
+        '不含转基因', '非转基因', '不含麸质', '无麸质',
+        '手工制作', '匠心打造', '德国工艺', '日本工艺'
+      ],
+      reason: '该主张与产品的环境影响或环保性能并无直接关联（如动物实验、工艺来源），将其置于"绿色宣传"语境中，会不当烘托产品的环保形象，属于"无关宣称"型漂绿。',
+      fix: '如确需保留，应与环保宣称在版面上明确区隔，避免造成二者存在因果关系的误解；无法提供与环保的关联证据时，建议从环保宣传板块中移除。',
+      laws: ['ad8', 'cpl20']
+    },
+    {
+      id: 'irr-shift',
+      cat: '无关宣称',
+      risk: '低',
+      name: '以环保倡议转移注意力',
+      terms: [
+        '共同守护', '一起守护', '为地球加油', '让地球更美',
+        '请分类回收', '请重复使用', '请节约用水', '随手关灯',
+        '绿色出行倡议', '地球一小时', '每一小步', '从你我做起'
+      ],
+      reason: '以环保倡议、公益口号转移消费者对产品本身环境影响的关注，属"转移视线"型漂绿。此类表述本身通常不构成违法，但会强化整体的误导性绿色形象，评估时应与相邻的具体宣称一并审视。',
+      fix: '保留倡议内容时，确保同页面同时给出可核验的产品环境信息；避免以倡议替代实质性披露。',
+      laws: ['iso14021', 'cpl20']
+    },
+
+    /* ============ 七、伪科学概念（Pseudoscience / Jargon）============ */
+    {
+      id: 'pseudo-tech',
+      cat: '伪科学概念',
+      risk: '中',
+      verify: true,
+      name: '无检测依据的科技/功效宣称',
+      terms: [
+        '纳米技术', '负离子', '远红外', '小分子团', '能量水', '活化水',
+        '磁疗', '频谱', '量子技术', '量子', '太赫兹', '石墨烯',
+        '光触媒', '臭氧杀菌', '等离子', '银离子', '抗菌率', '抑菌率',
+        '除菌率', '杀菌率', '除甲醛率', '净化率', '甲醛去除率',
+        '自清洁', '分解甲醛', '释放负氧离子'
+      ],
+      reason: '使用了专业或前沿科技词汇描述功效，但未给出检测机构、检测方法、检测条件与报告编号。此类"技术背书"式宣称属于无法验证的功效宣称，容易使消费者对产品性能产生错误认知（《广告法》第十一条、《反不正当竞争法》第八条）。',
+      fix: '补充第三方检测依据："经 XX 检测机构按 GB/T XXXX 检测，大肠杆菌抗菌率 99.2%（报告编号 XXX，20XX 年 X 月）"；无法提供的，删除相关表述。',
+      laws: ['ad11', 'ad28', 'aucl8']
+    },
+    {
+      id: 'pseudo-patent',
+      cat: '伪科学概念',
+      risk: '中',
+      name: '未标明专利号的专利宣称',
+      terms: ['专利技术', '国家专利', '发明专利', '独家专利', '专利配方', '拥有多项专利'],
+      reason: '广告中涉及专利产品或者专利方法的，应当标明专利号和专利种类；未取得专利权的，不得谎称取得专利权（《广告法》第十二条）。该表述未标明专利号，无法核验。',
+      fix: '标注完整信息："中国发明专利 ZL20XXXXXXXX.X"，并确保专利处于有效状态；未获授权的，删除表述。',
+      laws: ['ad12', 'ad28']
+    },
+
+    /* ============ 八、绿色符号堆砌 ============ */
+    {
+      id: 'symbol-stack',
+      cat: '模糊笼统',
+      risk: '低',
+      name: '绿色视觉符号堆砌',
+      terms: ['🌿', '🍃', '🌱', '🌍', '♻️', '💚', '✅', '🍀', '🌳', '🪴'],
+      reason: '文案中大量使用绿叶、地球、回收等绿色视觉符号，配合环保话术营造"绿色形象"，但未对应任何具体、可验证的环境信息。纯符号堆砌属于辅助性的误导手法。',
+      fix: '保留视觉元素的同时，补充可核验的具体环境信息（如能耗等级、材料成分占比、回收指引）。',
+      laws: ['iso14021', 'ad8']
+    },
+
+    /* ============ 新增：来自真实案例（DeepSeek 提炼；laws 仅中国法；cases 为先例佐证）============ */
+
+    /* ③ 选择性披露——隐瞒重大环境违规（需结合外部数据库核查） */
+    {
+      id: 'selective-disclosure',
+      cat: '以偏概全',
+      risk: '高',
+      verify: true,
+      name: '选择性披露——隐瞒重大环境违规',
+      terms: ['绿色工厂', '绿色矿山', '环保领军', '生态优先', '绿色标杆', 'ESG先锋', '无重大环保处罚', '清洁生产'],
+      reason: '企业宣称绿色荣誉、环保承诺的同时，隐瞒自身或子公司重大环境违法违规事实（超标排污、生态破坏等），或对罚单数量/严重程度进行压缩处理，使投资者/公众无法获知真实环境风险。此类"说一套做一套"构成误导性遗漏。',
+      fix: 'ESG报告/年报应如实、完整披露所有环境行政处罚、突发环境事件及整改情况，包括处罚金额、违法性质、生态后果；不得以"存在部分处罚"一笔带过；绿色荣誉本身不构成对合规状态的担保。',
+      laws: ['ad4', 'ad8', 'cpl20', 'ecom17', 'cpl26'],
+      principles: [2, 5, 6],
+      needsExternalCheck: true,
+      cases: [
+        "调查报道|南方周末|2025-11|华菱钢铁|宣称'无重大环保处罚事件'并获绿色工厂称号，但子公司涟钢被部长暗访发现无污染治理设施、监测造假，衡钢连收19张罚单；年报将19罚单浓缩为3项披露",
+        "调查报道|南方周末|2025-11|云天化|宣称拥有'国家级绿色矿山7座、绿色工厂6家''完善废水处理体系'，子公司东明矿业因化学需氧量/总氮/总磷超标被按日计罚1674万元（2024年上市企业单笔最高）",
+        "调查报道|南方周末|2025-11|金风科技|宣称'重视保护风电场生物多样性'并获绿色奖项，子公司武宣润仙因占用/毁坏林地年内被罚5次、破坏山体，但年报仅笼统提'部分环保处罚'未披露毁林详情",
+        "调查报道|南方周末|2025-11|高能环境|宣称'环保行业排头兵''科技创新赋能生态保护'，子公司重庆耀辉将含砷废水排入河流致41公里河段污染、5个水厂取水中断，子公司鑫科含砷废水超标3倍排放，信息披露未提及'较大突发环境事件'等级"
+      ]
+    },
+
+    /* ⑥ 将远期目标/承诺包装为当前行动 */
+    {
+      id: 'future-pledge',
+      cat: '模糊笼统',
+      risk: '高',
+      verify: true,
+      name: '将远期目标/承诺包装为当前行动',
+      terms: ['零碳承诺', '净零承诺', '碳中和承诺', '气候承诺', '致力于碳中和', '致力于零碳', '2050碳中和', '2030碳中和', '净零路线图'],
+      reason: '将尚不具备实质性支撑、无阶段性计划的远期净零/碳中和承诺，使用"承诺"(pledge)而非"目标"(goal)等词宣传，并搭配"正在采取行动"等表述，会使消费者高估企业当前减排成效，混淆"目标设定"与"目标实现"。',
+      fix: '明确区分"承诺/目标"与"已实现成果"；使用"目标"(goal)而非"承诺"(pledge)；提及未来目标时须以同等显著方式说明当前进展及阶段性里程碑；避免暗示尚未实现的环保愿景已产生当前环境效益。',
+      laws: ['ad8', 'ad28', 'cpl55'],
+      principles: [1, 2, 4],
+      cases: [
+        "司法案例|美国纽约最高法院|2025-10-31|JBS USA|'2040年净零排放承诺'缺乏具体减排计划和财务安排，和解协议要求将'承诺'改为'目标'，并支付110万美元",
+        "司法案例|美国哥伦比亚特区高等法院|2025-11-13|Tyson Foods|'气候智慧牛肉项目''2050净零排放'缺乏独立数据支撑，和解协议禁止5年内发布净零目标声明（除非经独立专家核实），禁止销售'气候智慧'牛肉",
+        "司法案例|美国马里兰州联邦地区法院|2024-08-13|美联航|'100%绿色航空''2050碳中和''Eco-Skies'计划，实际SAF用量仅0.025%，但被《航空放松管制法》优先适用驳回"
+      ]
+    },
+
+    /* ⑧ 隐瞒供应链重大环境负面影响（需结合外部数据库核查） */
+    {
+      id: 'hidden-supply-chain',
+      cat: '无关宣称',
+      risk: '中',
+      verify: true,
+      name: '隐瞒供应链重大环境负面影响',
+      terms: ['可持续来源', '负责任采购', '负责任经营', '森林保护', '可持续材料', '环保原材料'],
+      reason: '企业以"可持续来源""负责任采购"等正面宣传塑造产品环保形象，却未披露供应链中存在的毁林、水污染等重大环境负面事实；"说一套做一套"构成误导性遗漏。',
+      fix: '若宣传"可持续来源"，应披露供应商清单、认证覆盖范围及比例、可追溯性安排；说明产品生命周期关键环节的实际环境表现（含负面信息），不得以正面宣传掩盖供应链争议。',
+      laws: ['ad8', 'ecom17', 'cpl20', 'ad28'],
+      principles: [2, 5, 6],
+      needsExternalCheck: true,
+      cases: [
+        "集体诉讼|美国华盛顿西区联邦地区法院|2025-07-10|Amazon|自有品牌纸制品'由回收材料制成''可持续来源'暗示，供应商被指在加拿大北方森林进行皆伐，但未披露具体来源，被诉欺诈性遗漏",
+        "集体诉讼|美国伊利诺伊北区联邦地区法院|2025-05-28|Procter & Gamble (Charmin/Puffs)|'Keep Forests as Forests'宣传和FSC认证，供应商被指在加拿大北方森林皆伐，FSC认证覆盖率极低，'每伐一树，植树两棵'被指用人工林替代原始森林",
+        "OECD申诉|卢森堡国家联络点|2024-03-11|卢森堡国家养老金储备基金|宣称'经PEFC认证森林年吸收7500吨CO₂''5亿欧元巴黎协定对齐投资'，实际投资13大毁林企业中11家，仅2%资产受气候标准约束"
+      ]
+    },
+
+    /* ⑨ 环保产品宣传与实际供应量严重不符 */
+    {
+      id: 'green-product-availability',
+      cat: '无法验证的数据',
+      risk: '中',
+      name: '环保产品宣传与实际供应量严重不符',
+      terms: ['可持续产品', '低碳产品', '聚乳酸', '回收材料', '环保面料'],
+      reason: '企业大范围宣传环保概念产品或材料承诺，但实际量产和持续供应严重不足，消费者无法在主流渠道购买，产品仅为短期营销或评奖用途，构成对绿色消费预期的误导。',
+      fix: '环保产品的宣传应与实际供货能力相匹配；若为限量/短期发售应在宣传中明确说明；ESG报告中提及的环保产品/材料应有对应的在售产品和可验证的销售数据支撑。',
+      laws: ['ad8', 'cpl20', 'ad28'],
+      principles: [2, 4],
+      cases: [
+        "调查报道|南方周末|2025-11|特步|ESG报告承诺'增加环保聚乳酸产品比例'，但实际环保产品均短期/限量发售（100%聚乳酸风衣2022年已停售、360-ECO低碳跑鞋2025年停售），电商旗舰店找不到任何标注'环保聚乳酸'的在售产品"
+      ]
+    },
+
+    /* ⑩ 系统性气候科学否认与漂绿并行（需结合外部数据库核查） */
+    {
+      id: 'climate-disinformation',
+      cat: '伪科学概念',
+      risk: '高',
+      verify: true,
+      name: '系统性气候科学否认与漂绿并行',
+      terms: ['气候科学不确定性', '气候变化不确定性', '全球变暖存疑', '科学未证实', '气候争议', '环保领导者', '负责任能源', '绿色技术', '清洁能源', '应对气候变化'],
+      reason: '企业一面通过广告/公关塑造"积极应对气候变化"的环保形象，一面长期系统性散布气候科学不确定性信息、否认化石燃料与气候变化的因果关系，使消费者和投资者对企业产品实际环境影响产生系统性误判。',
+      fix: '环境宣传须与企业内部科学认知及实际业务方向一致；不得同时散布气候怀疑论调与漂绿宣传；提及气候变化应对措施时须披露具体行动方案及量化目标；所有环保声明应基于公认科学事实。',
+      laws: ['ad8', 'ad28', 'aucl8'],
+      principles: [2, 5, 6],
+      needsExternalCheck: true,
+      cases: [
+        "司法案例|美国马萨诸塞州联邦地区法院|2020-05-28|埃克森美孚|通过社论式广告散布气候科学不确定性，同时宣传燃料产品'减少温室气体排放''绿色'形象，内部早知化石燃料与气候变化关联，被诉气候欺诈，发回州法院",
+        "司法案例|美国康涅狄格州高等法院|2025-11-26|埃克森美孚|系统性欺骗宣传（弱化气候变化科学）与漂绿宣传（藻类生物燃料等环保形象）并行，内部知悉气候变化严重性，驳回撤诉动议进入实体审理",
+        "司法案例|美国哥伦比亚特区高等法院|2025-07-10|壳牌/BP/埃克森/雪佛龙|通过行业协会传播气候科学不确定性及绿色洗白宣传，驳回中间上诉认证申请"
+      ]
+    },
+
+    /* ⑫ ESG/金融产品遗漏气候风险披露（你确认保留，用于识别 ESG 报告漂绿） */
+    {
+      id: 'esg-disclosure-omission',
+      cat: '无法验证的数据',
+      risk: '中',
+      verify: true,
+      name: 'ESG/金融产品遗漏气候风险披露',
+      terms: ['气候风险', '物理风险', '转型风险', '可持续投资', '负责任投资', '产品披露声明'],
+      reason: '政府/金融机构在债券或金融产品风险披露中仅列传统风险（市场价格、通胀等），未包含已广泛预测的气候物理风险与转型风险及其对偿债能力/评级的潜在影响，可能构成误导或重大遗漏。在ESG报告中，若仅披露正面环境绩效而隐瞒气候相关风险，亦属选择性披露。',
+      fix: '发行人须将气候相关物理风险和转型风险纳入金融产品风险披露，并量化其对发行人财务状况、信用评级的潜在影响；应参考TCFD建议披露气候情景分析及敏感性。',
+      laws: ['ad4', 'cpl20', 'aucl8'],
+      principles: [4, 6],
+      needsExternalCheck: true,
+      cases: [
+        "司法案例（诉状阶段）|澳大利亚联邦法院|2021-10-28|澳大利亚联邦政府|政府债券风险披露仅列价格变动、通缩、转换风险，未披露气候变化物理/转型风险，被投资者诉称误导，案件尚未判决"
+      ]
+    }
+  ];
+
+  /* --------------------- 工具函数 --------------------- */
+  function escapeRx(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  var RISK_WEIGHT = { '高': 3, '中': 2, '低': 1 };
+  var RISK_DOWN = { '高': '中', '中': '低', '低': '低' };
+
+  /* 可核查出处的线索 */
+  var CITE_RE = /(?:依据|根据|按照|经.{0,6}检测|检测报告|检验报告|测试报告|报告编号|编号[:：]?\s*[A-Za-z0-9\-]{5,}|第三方|认证编号|证书编号|专利号|ZL\s?\d|SGS|CTI|华测|中检|通标|国标|GB\s?\/?\s?T?\s?\d|ISO\s?\d|Q\/|标准[:：]|数据来源|数据来自|测算口径|有效期限?至)/;
+
+  function hasCitation(text, start, end) {
+    var s = Math.max(0, start - 45);
+    var e = Math.min(text.length, end + 45);
+    return CITE_RE.test(text.slice(s, e));
+  }
+
+  /* 提取所在分句，便于在举报信中引用完整表述 */
+  var CLAUSE_PUNCT = '\n。！？；;，、';
+  function contextOf(text, start, end) {
+    var s = start, e = end, limit = 70;
+    while (s > 0 && CLAUSE_PUNCT.indexOf(text[s - 1]) < 0 && start - s < limit) s--;
+    while (e < text.length && CLAUSE_PUNCT.indexOf(text[e]) < 0 && e - end < limit) e++;
+    var ctx = text.slice(s, e).trim().replace(/^[，,、；;\s]+|[，,、；;\s]+$/g, '');
+    if (ctx.length > 100) ctx = ctx.slice(0, 100);
+    return ctx || text.slice(start, end);
+  }
+
+  /* 主匹配函数 */
+  function analyze(text) {
+    if (!text || !text.trim()) {
+      return {
+        hits: [],
+        cats: {},
+        notes: [{
+          cat: '综合提示', risk: '低', name: '未输入文本',
+          reason: '尚未粘贴待检文本，无法进行筛查。',
+          fix: '请粘贴广告语、包装文案或 ESG 报告段落（5000 字以内）后点击"开始识别"。',
+          laws: ['ad4']
+        }]
+      };
+    }
+    var raw = [];
+
+    RULES.forEach(function (rule) {
+      // 构造正则列表
+      var res = [];
+      if (rule.terms && rule.terms.length) {
+        var sorted = rule.terms.slice().sort(function (a, b) { return b.length - a.length; });
+        res.push(new RegExp(sorted.map(escapeRx).join('|'), 'g'));
+      }
+      if (rule.res && rule.res.length) {
+        rule.res.forEach(function (r) { res.push(new RegExp(r.source, r.flags.indexOf('g') >= 0 ? r.flags : r.flags + 'g')); });
+      }
+
+      res.forEach(function (re) {
+        re.lastIndex = 0;
+        var m;
+        var guard = 0;
+        while ((m = re.exec(text)) !== null && guard++ < 5000) {
+          if (m[0].length === 0) { re.lastIndex++; continue; }
+          raw.push({
+            ruleId: rule.id,
+            cat: rule.cat,
+            name: rule.name,
+            baseRisk: rule.risk,
+            reason: rule.reason,
+            fix: rule.fix,
+            laws: rule.laws.slice(),
+            cases: rule.cases ? rule.cases.slice() : [],
+            principles: rule.principles || [],
+            needsExternalCheck: !!rule.needsExternalCheck,
+            start: m.index,
+            end: m.index + m[0].length,
+            hit: m[0]
+          });
+        }
+      });
+    });
+
+    /* 出处降档 */
+    raw.forEach(function (h) {
+      var rule = null;
+      for (var i = 0; i < RULES.length; i++) { if (RULES[i].id === h.ruleId) { rule = RULES[i]; break; } }
+      h.risk = h.baseRisk;
+      h.downgraded = false;
+      if (rule && rule.verify && hasCitation(text, h.start, h.end)) {
+        h.risk = RISK_DOWN[h.baseRisk];
+        h.downgraded = h.risk !== h.baseRisk;
+      }
+      h.weight = RISK_WEIGHT[h.risk];
+    });
+
+    /* 重叠消解：优先级 风险权重 > 长度 > 位置 */
+    raw.sort(function (a, b) {
+      if (b.weight !== a.weight) return b.weight - a.weight;
+      var la = a.end - a.start, lb = b.end - b.start;
+      if (lb !== la) return lb - la;
+      return a.start - b.start;
+    });
+
+    var taken = [];
+    var kept = [];
+    raw.forEach(function (h) {
+      for (var i = 0; i < taken.length; i++) {
+        if (h.start < taken[i].end && taken[i].start < h.end) return; // 重叠则丢弃
+      }
+      taken.push(h);
+      kept.push(h);
+    });
+
+    kept.sort(function (a, b) { return a.start - b.start; });
+    kept.forEach(function (h, i) {
+      h.idx = i + 1;
+      h.ctx = contextOf(text, h.start, h.end);
+    });
+
+    /* 综合提示（不对应具体片段） */
+    var notes = [];
+    var cats = {};
+    kept.forEach(function (h) { cats[h.cat] = (cats[h.cat] || 0) + 1; });
+    var catCount = Object.keys(cats).length;
+    var highCount = kept.filter(function (h) { return h.risk === '高'; }).length;
+
+    if (kept.length >= 5 || catCount >= 3) {
+      notes.push({
+        cat: '综合提示',
+        risk: '中',
+        name: '绿色宣称密集堆砌',
+        reason: '文本中共检出 ' + kept.length + ' 处可疑表述，覆盖 ' + catCount + ' 个类别。国际通行做法（如 ISO 14021、欧盟《为绿色转型赋能消费者指令》）认为：即使单条表述危害有限，密集堆砌环保话术本身也会整体性误导消费者对产品环境表现的判断。建议整体重构宣传文案，优先保留可核验的量化信息。',
+        fix: '遵循"具体、可验证、有边界"三原则重写：删除无法提供证明的表述；为保留的每条数据标注来源与口径；避免绝对化用语与无编号认证。',
+        laws: ['iso14021', 'ad4', 'ad28']
+      });
+    }
+    if (highCount === 0 && kept.length > 0) {
+      notes.push({
+        cat: '综合提示',
+        risk: '低',
+        name: '未检出高风险条目',
+        reason: '本次筛查未发现绝对化用语、无出处量化数据、虚构认证等高风险表述，但中低风险条目仍可能在具体语境下构成误导，建议逐条人工复核。',
+        fix: '对中风险条目补充证明材料后再行发布。',
+        laws: ['ad4']
+      });
+    }
+    if (kept.length === 0) {
+      notes.push({
+        cat: '综合提示',
+        risk: '低',
+        name: '未检出可疑表述',
+        reason: '本次基于关键词与规则的筛查未命中任何条目。需注意：本工具仅覆盖常见表述模式，无法识别规避性改写、图形化暗示或复杂语境下的误导，不能据此认定宣传内容合法合规。',
+        fix: '仍建议由法务或合规人员对文案进行人工复核。',
+        laws: ['ad4']
+      });
+    }
+
+    return { hits: kept, notes: notes, cats: cats };
+  }
+
+  global.GW = {
+    LAWS: LAWS,
+    RULES: RULES,
+    analyze: analyze,
+    escapeRx: escapeRx,
+    PATHS: PATHS
+  };
+  // PATHS 供第二个脚本块（UI 层）直接引用
+  global.PATHS = PATHS;
+})(window);
+
+</script>
+<script>
+/* ============================================================
+ *  app.js —— 漂绿识别工具交互逻辑（纯本地，无网络请求）
+ * ============================================================ */
+(function () {
+  'use strict';
+
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+  var RISK_CLS = { '高': 'high', '中': 'mid', '低': 'low' };
+  var STORE_KEY = 'gw-tool-draft-v1';
+
+  var state = { res: null, text: '', filterRisk: 'all', filterCat: 'all' };
+
+  /* ---------------- 工具 ---------------- */
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 1900);
+  }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日';
+  }
+  function copyText(text, okMsg) {
+    if (!text) { toast('内容为空'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast(okMsg || '已复制'); })
+        .catch(function () { fallbackCopy(text, okMsg); });
+    } else { fallbackCopy(text, okMsg); }
+  }
+  function fallbackCopy(text, okMsg) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(okMsg || '已复制'); }
+    catch (e) { toast('复制失败，请手动选择文本'); }
+    document.body.removeChild(ta);
+  }
+
+  /* ---------------- 本地草稿 ---------------- */
+  var saveTimer = null;
+  function saveDraft() {
+    if (!$('#chkAutosave').checked) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try {
+        var data = {
+          text: $('#inputText').value,
+          form: {},
+          opts: { low: $('#optLow').checked, notes: $('#optNotes').checked, autosave: true }
+        };
+        ['fOrg', 'fName', 'fPhone', 'fAddr', 'fBiz', 'fCode', 'fBizAddr', 'fMedium', 'fWhen', 'fClaims', 'fDemands', 'fEvidence']
+          .forEach(function (id) { data.form[id] = $('#' + id).value; });
+        localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      } catch (e) { /* 忽略配额错误 */ }
+    }, 400);
+  }
+  function loadDraft() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.text) { $('#inputText').value = d.text; }
+      if (d.form) { Object.keys(d.form).forEach(function (k) { if ($('#' + k) && d.form[k]) $('#' + k).value = d.form[k]; }); }
+      if (d.opts) {
+        $('#optLow').checked = !!d.opts.low;
+        $('#optNotes').checked = d.opts.notes !== false;
+      }
+      updateCount();
+    } catch (e) { /* 忽略 */ }
+  }
+
+  /* ---------------- 输入 ---------------- */
+  function updateCount() {
+    $('#charCount').textContent = $('#inputText').value.length;
+  }
+
+  var SAMPLE = 'XX牌全效净洗衣液，行业首创绿色科技，通过国家级环保认证，纯天然植物萃取，不含任何化学成分，无毒无害！\n'
+    + '采用纳米负离子活化技术，去污力提升300%，节水80%，瓶身100%可降解，全线产品已实现碳中和，比传统洗衣液减少碳排放65%，相当于种了1200棵树。\n'
+    + '本品不含氟利昂，采用无磷配方，瓶盖使用再生塑料，荣获国际环保组织推荐。🌿🍃\n'
+    + '选择我们，共同守护地球家园，让地球更美！';
+
+  /* ---------------- 识别 ---------------- */
+  /* ---------------- 维权路径推荐 ---------------- */
+  // 每条规则默认对应的维权途径（数据驱动，便于随规则集维护）
+  var RULE_PATHS = {
+    'vague-eco': ['market'], 'vague-natural': ['market'], 'vague-nochemical': ['market'],
+    'data-percent': ['market'], 'data-absolute': ['market'], 'data-analogy': ['market'],
+    'cert-nonumber': ['market'], 'cert-fake': ['market'], 'cmp-superlative': ['market'],
+    'cmp-unclear': ['market'], 'partial-claim': ['market'], 'partial-condition': ['market'],
+    'irr-banned': ['market'], 'irr-other': ['market'], 'irr-shift': ['market'],
+    'pseudo-tech': ['market'], 'pseudo-patent': ['market'], 'symbol-stack': ['market'],
+    'green-product-availability': ['market'],
+    'selective-disclosure': ['csrc', 'court'], 'esg-disclosure-omission': ['csrc', 'court'],
+    'climate-disinformation': ['csrc', 'court'], 'hidden-supply-chain': ['csrc', 'market'],
+    'future-pledge': ['market', 'csrc']
+  };
+
+  var PATH_LABEL = {
+    market: '市场监管投诉（12315 / 12345）',
+    eco: '生态环境举报（12369 / 12345）',
+    csrc: '证监会举报（12386）',
+    esg: 'ESG 评级机构举报',
+    court: '法院诉讼（消费欺诈三倍 / 证券虚假陈述）'
+  };
+
+  // 根据命中规则 + 输入文本情境，推荐最合适的维权路径
+  function recommendPaths(hits, text) {
+    var w = { market: 0, eco: 0, csrc: 0, court: 0 };
+    hits.forEach(function (h) {
+      var ps = RULE_PATHS[h.id] || ['market'];
+      ps.forEach(function (p) { w[p] += 1; });
+    });
+    var t = text || '';
+    // 上市公司 / ESG 披露类信号
+    if (/ESG|年报|可持续[发展]*报告|上市公司|投资者|董事会|招股|财报|披露/.test(t)) { w.csrc += 2; w.court += 1; }
+    // 实际环境表现 / 排污类信号
+    if (/排放|排污|超标|监测数据|污染物|环保处罚|偷排|泄漏|废气|废水|污泥/.test(t)) { w.eco += 2; }
+    // 已购买 / 受损信号
+    if (/购买|下单|订单|付款|消费者|已买|已购|受损/.test(t)) { w.court += 1; w.market += 0.5; }
+
+    var order = ['csrc', 'eco', 'court', 'market']; // 严重度优先的并列决胜序
+    var main = 'market', best = 0; // best 从 0 起，确保无信号时回落到 market
+    order.forEach(function (p) {
+      if (w[p] > best) { best = w[p]; main = p; }
+    });
+
+    var reason;
+    if (hits.length === 0) {
+      reason = '本次未检测到明确漂绿表述；若你仍怀疑存在误导，最便捷的方式是先通过 12315 向市场监督管理部门咨询或投诉。';
+    } else if (main === 'csrc') {
+      reason = '检测到与上市公司 ESG / 环境信息披露相关的可疑表述（如选择性披露、远期承诺包装、气候信息误导等），建议优先向证券监管部门（12386）举报，受损投资者亦可考虑证券虚假陈述诉讼。';
+    } else if (main === 'eco') {
+      reason = '文本涉及实际环境表现（如超标排放、监测数据造假等），建议向生态环境部门（12369）举报。';
+    } else if (main === 'court') {
+      reason = '你粘贴的内容显示已有购买或受损事实，建议通过法院诉讼主张赔偿（消费欺诈三倍 / 证券虚假陈述）。';
+    } else {
+      reason = '主要为面向消费者的误导性绿色宣传，最便捷的方式是通过 12315 向市场监督管理部门投诉举报。';
+    }
+    return { main: main, weights: w, reason: reason };
+  }
+
+  // 显示推荐横幅并按路径过滤指引；isAuto=true 来自分析，false 来自手动切换
+  // 按途径过滤举报引导中的路径段落（须为顶层函数，供 showPathRecommendation 调用）
+  function filterGuide(path) {
+    $$('.guide-card .pathway').forEach(function (pw) {
+      var paths = (pw.getAttribute('data-path') || '').split(/\s+/);
+      pw.classList.toggle('pw-hidden', paths.indexOf(path) < 0 && paths.indexOf('all') < 0);
+    });
+    // 整组无命中 → 整组隐藏，避免出现"3."孤条
+    $$('.guide-card .guide-sec').forEach(function (sec) {
+      var anyShown = sec.querySelector('.pathway:not(.pw-hidden)');
+      sec.style.display = anyShown ? '' : 'none';
+    });
+    $('#guideCard').hidden = false;
+  }
+
+  function showPathRecommendation(rec, isAuto) {
+    var box = $('#pathRec');
+    if (!box) return;
+    var path = $('#fPath').value;
+    // 每次重新推荐/切换都先收起"其他路径"，回到仅看推荐状态
+    $('#guideCard').classList.remove('all-paths');
+    var btn = $('#btnTogglePaths');
+    if (btn) btn.textContent = '查看其他维权路径 ▾';
+    var label = PATH_LABEL[path] || path;
+    var html;
+    if (!isAuto && rec && path !== rec.main) {
+      var recLabel = PATH_LABEL[rec.main] || rec.main;
+      html = '<b>你已切换至 ' + esc(label) + '</b>。系统基于检测结果原推荐 <b>' + esc(recLabel) + '</b>：' + esc(rec ? rec.reason : '');
+    } else {
+      html = '<span class="pr-tag">推荐路径</span><b>' + esc(label) + '</b> — ' + esc(rec ? rec.reason : '');
+    }
+    box.innerHTML = html;
+    box.hidden = false;
+    filterGuide(path);
+  }
+
+  function analyze() {
+    var text = $('#inputText').value;
+    if (!text.trim()) { toast('请先粘贴待检文本'); $('#inputText').focus(); return; }
+    state.text = text;
+    state.res = GW.analyze(text);
+
+    var hits = state.res.hits;
+
+    // 推荐维权路径：须在 fillClaims 之前设定 #fPath
+    var rec = recommendPaths(hits, text);
+    state.rec = rec;
+    $('#fPath').value = rec.main;
+    showPathRecommendation(rec, true);
+
+    // 原文标注
+    renderMarked(text, hits);
+    // 总览
+    renderOverview(hits, state.res.cats, text.length);
+    // 清单
+    buildCatFilter(hits);
+    renderIssues();
+    // 整体建议
+    renderFixes(hits, state.res.notes);
+    // 举报信区
+    fillClaims(hits);
+
+    ['#highlightCard', '#suggestCard', '#overviewCard', '#issuesCard', '#letterCard'].forEach(function (s) { $(s).hidden = false; });
+    // 六项原则按需显示：仅列出命中规则涉及的原则
+    var pSet = {};
+    hits.forEach(function (h) { (h.principles || []).forEach(function (p) { pSet[p] = 1; }); });
+    $$('.principles-card .p-item').forEach(function (it) { it.hidden = !pSet[it.getAttribute('data-p')]; });
+    var ph = $('#pPlaceholder');
+    if (hits.length > 0) { ph.hidden = true; }
+    else { ph.hidden = false; ph.textContent = '未发现明显漂绿表述，暂无针对性原则提示。'; }
+    $('#letterHint').hidden = true;
+    $('#letterForm').hidden = false;
+
+    var high = hits.filter(function (h) { return h.risk === '高'; }).length;
+    toast('识别完成：' + hits.length + ' 处可疑表述' + (high ? '，其中高风险 ' + high + ' 处' : ''));
+  }
+
+  function renderMarked(text, hits) {
+    var html = '', pos = 0;
+    hits.forEach(function (h) {
+      var hitText = text.slice(h.start, h.end);
+      html += esc(text.slice(pos, h.start));
+      html += '<mark class="lv-' + RISK_CLS[h.risk] + '" data-idx="' + h.idx + '" title="' +
+        esc(h.cat + ' · ' + h.name + '（' + h.risk + '风险）') + '">' + esc(hitText) + '</mark>';
+      pos = h.end;
+    });
+    html += esc(text.slice(pos));
+    $('#markedText').innerHTML = html;
+  }
+
+  function renderOverview(hits, cats, len) {
+    var high = 0, mid = 0, low = 0;
+    hits.forEach(function (h) {
+      if (h.risk === '高') high++; else if (h.risk === '中') mid++; else low++;
+    });
+    var raw = 3 * high + 1.8 * mid + 0.7 * low;
+    var score = Math.min(100, Math.round(raw * 3));
+    var level = score >= 60 ? '高' : (score >= 25 ? '中' : '低');
+
+    var desc = hits.length === 0
+      ? '本次筛查未命中规则条目。注意：未命中不等于合规。'
+      : '共检出 ' + hits.length + ' 处可疑表述，覆盖 ' + Object.keys(cats).length + ' 个类别。' +
+        (high > 0 ? '存在 ' + high + ' 处高风险表述，建议优先处理。' : '未发现高风险表述，建议逐条复核中低风险条目。');
+
+    $('#overview').innerHTML =
+      '<div class="score s-' + RISK_CLS[level] + '"><b>' + score + '</b><span>风险指数</span></div>' +
+      '<div class="ov-txt"><div class="ov-level">综合风险等级：' + level + '</div><p>' + esc(desc) + '</p>' +
+      '<div class="ov-nums">' +
+      '<span class="lg lg-high">高 ' + high + '</span>' +
+      '<span class="lg lg-mid">中 ' + mid + '</span>' +
+      '<span class="lg lg-low">低 ' + low + '</span>' +
+      '<span class="lg" style="border-color:var(--line-strong);background:var(--bg-soft);color:var(--txt-3)">字数 ' + len + '</span>' +
+      '</div></div>';
+
+    $('#cHigh').textContent = high;
+    $('#cMid').textContent = mid;
+    $('#cLow').textContent = low;
+
+    var keys = Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; });
+    var max = keys.length ? cats[keys[0]] : 1;
+    $('#catBars').innerHTML = keys.length
+      ? keys.map(function (k) {
+          return '<div class="catbar"><span class="cb-name">' + esc(k) + '</span>' +
+            '<span class="cb-track"><span class="cb-fill" style="width:' + Math.round(cats[k] / max * 100) + '%"></span></span>' +
+            '<span class="cb-num">' + cats[k] + '</span></div>';
+        }).join('')
+      : '';
+  }
+
+  function buildCatFilter(hits) {
+    var sel = $('#catFilter');
+    var cur = sel.value;
+    var cats = {};
+    hits.forEach(function (h) { cats[h.cat] = 1; });
+    var opts = '<option value="all">所有类别</option>' +
+      Object.keys(cats).map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    sel.innerHTML = opts;
+    sel.value = (cur && cats[cur]) ? cur : 'all';
+    state.filterCat = sel.value;
+  }
+
+  function filteredHits() {
+    if (!state.res) return [];
+    return state.res.hits.filter(function (h) {
+      if (state.filterRisk !== 'all' && h.risk !== state.filterRisk) return false;
+      if (state.filterCat !== 'all' && h.cat !== state.filterCat) return false;
+      return true;
+    });
+  }
+
+  function renderIssues() {
+    var list = filteredHits();
+    $('#issueCount').textContent = list.length;
+
+    if (!list.length) {
+      $('#issueList').innerHTML = '<div class="empty">当前筛选条件下没有条目</div>';
+    } else {
+      $('#issueList').innerHTML = list.map(function (h) {
+        var laws = (h.laws || []).map(function (k) {
+          var l = GW.LAWS[k];
+          return l ? '<li><b>' + esc(l.n) + '</b>' + esc(l.t) + '</li>' : '';
+        }).join('');
+        return '' +
+          '<div class="issue r-' + RISK_CLS[h.risk] + '" data-idx="' + h.idx + '">' +
+          '<div class="issue-top">' +
+          '<span class="tag t-' + RISK_CLS[h.risk] + '">' + h.risk + '风险</span>' +
+          '<span class="tag-cat">' + esc(h.cat) + '</span>' +
+          '<span class="issue-no">#' + h.idx + '</span>' +
+          '</div>' +
+          '<div class="issue-name">' + esc(h.name) + '</div>' +
+          '<div class="quote">“' + esc(h.hit) + '”' +
+            (h.ctx && h.ctx !== h.hit ? '<span class="quote-ctx">所在语句：' + esc(h.ctx) + '</span>' : '') +
+          '</div>' +
+          '<dl>' +
+          '<dt>判定理由</dt><dd>' + esc(h.reason) + '</dd>' +
+          '<dt>修改建议</dt><dd class="fix">' + esc(h.fix) + '</dd>' +
+          '</dl>' +
+          (h.downgraded ? '<div class="down-note">片段附近检测到疑似出处标注，风险已由「' + h.baseRisk + '」下调至「' + h.risk + '」，请人工核实其真实性。</div>' : '') +
+          (laws ? '<details class="laws"><summary>法律依据（' + h.laws.length + ' 条）</summary><ul>' + laws + '</ul></details>' : '') +
+          (h.principles && h.principles.length ? '<div class="cases"><span class="cases-h">违反原则</span> ' + h.principles.map(function (p) { return '原则' + p; }).join('、') + (h.needsExternalCheck ? ' <span class="ext-tag">需外部核查</span>' : '') + '</div>' : (h.needsExternalCheck ? '<div class="cases"><span class="ext-tag">需外部核查（企业合规/数据库）</span></div>' : '')) +
+          (h.cases && h.cases.length ? '<details class="cases"><summary>先例佐证（' + h.cases.length + ' 条）</summary><ul>' + h.cases.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul></details>' : '') +
+          '<div class="issue-actions">' +
+          '<button class="btn btn-mini" data-act="locate" data-idx="' + h.idx + '" type="button">定位原文</button>' +
+          '<button class="btn btn-mini" data-act="copyfix" data-idx="' + h.idx + '" type="button">复制建议</button>' +
+          '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    // 综合提示（不受筛选影响）
+    var notes = state.res.notes || [];
+    $('#notesBox').innerHTML = notes.map(function (n) {
+      var laws = (n.laws || []).map(function (k) {
+        var l = GW.LAWS[k];
+        return l ? '<li><b>' + esc(l.n) + '</b>' + esc(l.t) + '</li>' : '';
+      }).join('');
+      return '<div class="note-item"><b>综合提示 · ' + esc(n.name) + '（' + n.risk + '风险）</b>' +
+        esc(n.reason) + '<dl><dt>处理建议</dt><dd>' + esc(n.fix) + '</dd></dl>' +
+        (laws ? '<details class="laws"><summary>法律依据（' + n.laws.length + ' 条）</summary><ul>' + laws + '</ul></details>' : '') +
+        '</div>';
+    }).join('');
+  }
+
+  function renderFixes(hits, notes) {
+    var byCat = {};
+    hits.forEach(function (h) { (byCat[h.cat] = byCat[h.cat] || []).push(h); });
+    var html = Object.keys(byCat).map(function (cat) {
+      var items = byCat[cat];
+      var highFirst = items.slice().sort(function (a, b) {
+        var w = { '高': 3, '中': 2, '低': 1 };
+        return w[b.risk] - w[a.risk];
+      });
+      return '<li><b>' + esc(cat) + '</b>（' + items.length + ' 处）：' +
+        esc(highFirst[0].fix) +
+        '<span class="fc">　涉及片段：' +
+        highFirst.slice(0, 4).map(function (h) { return '“' + esc(h.hit) + '”'; }).join('、') +
+        (highFirst.length > 4 ? ' 等' : '') + '</span></li>';
+    }).join('');
+
+    html += (notes || []).map(function (n) {
+      return '<li><b>' + esc(n.cat) + '</b>：' + esc(n.fix) + '</li>';
+    }).join('');
+
+    if (!html) html = '<li>未检出可疑表述，仍建议由合规人员复核文案中的量化数据与认证宣称是否具备证明材料。</li>';
+    $('#fixList').innerHTML = html;
+  }
+
+  /* ---------------- 举报信 ---------------- */
+  function fillClaims(hits) {
+    var txt = hits.map(function (h) {
+      return h.idx + '. “' + (h.ctx || h.hit) + '”（' + h.cat + ' · ' + h.risk + '风险）';
+    }).join('\n');
+    $('#fClaims').value = txt;
+
+    var path = $('#fPath') ? $('#fPath').value : 'market';
+    var cfg = PATHS[path] || PATHS.market;
+
+    var fD = $('#fDemands');
+    if (!fD.value.trim()) { fD.value = cfg.demands; fD.setAttribute('data-default', '1'); }
+    else { fD.removeAttribute('data-default'); }
+
+    var fO = $('#fOrg');
+    if (!fO.value.trim() || fO.value === PATHS.market.org) { fO.value = cfg.org; fO.setAttribute('data-default', '1'); }
+    else { fO.removeAttribute('data-default'); }
+
+    if (!$('#fEvidence').value.trim()) {
+      $('#fEvidence').value = [
+        '1. 涉案商品实物及外包装照片（清晰显示上述宣传用语）；',
+        '2. 购买凭证（订单截图 / 发票 / 支付记录）；',
+        '3. 涉案宣传页面截图及录屏（含完整网址、时间戳、店铺名称）；',
+        '4. 与商家客服沟通记录截图；',
+        '5. 要求商家出具检测报告 / 认证证书而未提供或拒绝提供的记录（如有）；',
+        '6. 其他：（请补充）'
+      ].join('\n');
+    }
+  }
+
+  function parseClaims(text) {
+    return text.split('\n').map(function (l) { return l.trim(); })
+      .filter(Boolean)
+      .map(function (line) {
+        var m = line.match(/^(?:\d+\s*[.、)]\s*)?([\s\S]*?)\s*[（(]([^（）()]*)[）)]\s*$/);
+        var quote = m ? m[1] : line;
+        var anno = m ? m[2] : '';
+        quote = quote.replace(/^["“”「『\s]+/, '').replace(/["“”」』\s]+$/, '');
+        var annoCat = anno ? String(anno).split(/[·•|｜/]/)[0].trim() : '';
+        return { raw: line, quote: quote, anno: anno, annoCat: annoCat };
+      }).filter(function (c) { return c.quote.length > 0; });
+  }
+
+  function matchHit(quote, annoCat) {
+    var hits = state.res ? state.res.hits : [];
+    var i, h;
+    function same(a) { return a.ctx === quote || a.hit === quote; }
+    function contains(a) { return quote.indexOf(a.hit) >= 0 || a.hit.indexOf(quote) >= 0; }
+    // 1) 完全匹配 + 类别一致
+    if (annoCat) {
+      for (i = 0; i < hits.length; i++) {
+        h = hits[i];
+        if (same(h) && h.cat === annoCat) return h;
+      }
+    }
+    // 2) 完全匹配
+    for (i = 0; i < hits.length; i++) { if (same(hits[i])) return hits[i]; }
+    // 3) 包含匹配 + 类别一致
+    if (annoCat) {
+      for (i = 0; i < hits.length; i++) {
+        h = hits[i];
+        if (contains(h) && h.cat === annoCat) return h;
+      }
+    }
+    // 4) 包含匹配
+    for (i = 0; i < hits.length; i++) { if (contains(hits[i])) return hits[i]; }
+    return null;
+  }
+
+  function genLetter() {
+    if (!state.res) { toast('请先完成文本识别'); return; }
+    var inclLow = $('#optLow').checked;
+    var withLaws = $('#optNotes').checked;
+
+    var claims = parseClaims($('#fClaims').value);
+    if (!claims.length) { toast('请至少填写一条涉嫌违法表述'); return; }
+    if (!inclLow) {
+      claims = claims.filter(function (c) {
+        var h = matchHit(c.quote, c.annoCat);
+        return !h || h.risk !== '低';
+      });
+    }
+    if (!claims.length) { toast('过滤后没有可写入的表述，请勾选"纳入低风险条目"或补填内容'); return; }
+
+    var v = function (id, dft) {
+      var s = $('#' + id).value.trim();
+      return s || dft;
+    };
+    var path = $('#fPath').value;
+    var cfg = PATHS[path] || PATHS.market;
+    var org = v('fOrg', cfg.org);
+    var biz = v('fBiz', '（被举报主体名称待填）');
+    var code = v('fCode', '（待填）');
+    var bizAddr = v('fBizAddr', '（待填）');
+    var medium = v('fMedium', '（涉案宣传载体待填，如电商详情页 / 产品外包装 / 门店海报）');
+    var when = v('fWhen', '（时间、渠道与金额待填）');
+    var name = v('fName', '（举报人姓名）');
+    var phone = v('fPhone', '（联系电话）');
+    var addr = v('fAddr', '（通讯地址）');
+
+    var L = [];
+    L.push('关于 ' + biz + ' 涉嫌「' + cfg.title + '」的举报 / 维权文书');
+    L.push('');
+    L.push(org + '：');
+    L.push('');
+    L.push('举报人：' + name + '　联系电话：' + phone + '　通讯地址：' + addr);
+    L.push('被举报人：' + biz + '　统一社会信用代码：' + code + '　住所 / 经营场所：' + bizAddr);
+    L.push('涉案宣传载体：' + medium);
+    L.push('');
+    L.push('一、举报事项');
+    L.push('举报人发现，被举报人在 ' + medium + ' 中使用下列宣传用语。举报人认为，相关内容涉嫌' + cfg.title + '，现依法举报，请予查处：');
+    L.push('');
+
+    var usedLaws = [];
+    function addLaw(k) { if (usedLaws.indexOf(k) < 0) usedLaws.push(k); }
+
+    // 按"同一类问题 + 同一风险等级"合并表述，避免举报信中重复罗列
+    var groups = [], gmap = {};
+    claims.forEach(function (c) {
+      var h = matchHit(c.quote, c.annoCat);
+      var key = h ? ('r:' + h.ruleId + '|' + h.risk) : ('t:' + c.quote);
+      if (!gmap[key]) {
+        gmap[key] = { key: key, hit: h, cat: c.annoCat || (h ? h.cat : '涉嫌引人误解的商业宣传'), risk: h ? h.risk : '', anno: c.anno, quotes: [] };
+        groups.push(gmap[key]);
+      }
+      if (gmap[key].quotes.indexOf(c.quote) < 0) gmap[key].quotes.push(c.quote);
+      if (!gmap[key].hit && h) gmap[key].hit = h;
+    });
+
+    groups.forEach(function (g, i) {
+      var h = g.hit;
+      L.push((i + 1) + '. 涉嫌问题：' + g.cat + (g.risk ? '（' + g.risk + '风险）' : ''));
+      var qs = g.quotes;
+      if (qs.length === 1) {
+        L.push('   涉案表述：“' + qs[0] + '”');
+      } else {
+        L.push('   涉案表述（共 ' + qs.length + ' 处）：');
+        qs.slice(0, 12).forEach(function (q, k) {
+          L.push('     （' + (k + 1) + '）“' + q + '”');
+        });
+        if (qs.length > 12) L.push('     ……其余 ' + (qs.length - 12) + ' 处表述详见证据材料');
+      }
+      if (h) {
+        L.push('   判定理由：' + h.reason);
+        (h.laws || []).forEach(addLaw);
+      } else {
+        L.push('   判定理由：该表述缺乏可验证的事实依据（未提供检测报告、认证证书或其他有效证明材料），易使消费者对商品的环境影响、性能或环保属性产生错误认知。');
+        ['ad4', 'ad28', 'aucl8', 'cpl20'].forEach(addLaw);
+      }
+      L.push('');
+    });
+
+    var quoteTotal = groups.reduce(function (n, g) { return n + g.quotes.length; }, 0);
+
+    L.push('二、事实与理由');
+    L.push('举报人系通过 ' + medium + ' 接触并注意到上述宣传内容。相关时间、渠道与交易情况如下：' + when + '。');
+    L.push('举报人认为，被举报人使用“绿色”“环保”“天然”等表述，并配合量化数据、认证名义与科技概念，足以使一般消费者相信其商品具有明确、可验证的环保优势，从而影响购买决策。');
+    L.push('经举报人查阅，被举报人未在其宣传页面（或产品包装）上披露上述数据的测算口径、检测机构与报告编号，亦未标明相关认证机构、证书编号及有效期，消费者无从核验其真实性。举报人曾要求被举报人提供相应证明材料，被举报人未提供（或未提供有效材料）。');
+    L.push(cfg.basis);
+    L.push('');
+    L.push('三、举报诉求');
+    L.push($('#fDemands').value.trim() || cfg.demands);
+    L.push('');
+    L.push('四、证据清单（详见附件）');
+    L.push($('#fEvidence').value.trim() || '（请填写证据清单）');
+    L.push('');
+
+    if (withLaws) {
+      cfg.laws.forEach(addLaw);
+      L.push('五、可能适用的法律依据（供参考，以现行有效文本为准）');
+      usedLaws.forEach(function (k) {
+        var l = GW.LAWS[k];
+        if (l) L.push(l.n + '：' + l.t);
+      });
+      L.push('');
+    }
+
+    L.push('六、其他说明');
+    L.push('1. 举报人对本举报信所陈述事实的真实性负责，愿配合贵机关（院）调查并补充证据；');
+    L.push('2. 举报人请求贵机关（院）依法对举报人信息予以保密；');
+    L.push('3. 本举报信中的法律条款引用系举报人基于公开法规的初步理解，具体定性以贵机关（院）认定为准。');
+    L.push('');
+    L.push('此致');
+    L.push(org);
+    L.push('');
+    L.push('举报人（签名）：');
+    L.push('日期：' + todayStr());
+    L.push('');
+    L.push('附件：证据材料 ' + ($('#fEvidence').value.trim().split('\n').filter(function (x) { return x.trim(); }).length || '若干') + ' 份');
+
+    var out = L.join('\n');
+    $('#letterText').value = out;
+    $('#letterOut').hidden = false;
+    $('#letterStat').textContent = '已生成：' + groups.length + ' 类问题、' + quoteTotal + ' 处表述，引用法律依据 ' +
+      usedLaws.length + ' 条' + (inclLow ? '' : '（已排除低风险条目）');
+    toast('举报信草稿已生成，请逐项核对后使用');
+  }
+
+  /* ---------------- 导出 ---------------- */
+  function download() {
+    var txt = $('#letterText').value;
+    if (!txt.trim()) { toast('请先生成举报信'); return; }
+    var name = '举报信草稿_' + ($('#fBiz').value.trim() || '未命名主体') + '_' +
+      new Date().toISOString().slice(0, 10) + '.txt';
+    try {
+      var blob = new Blob(['\ufeff' + txt], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); document.body.removeChild(a); }, 300);
+      toast('已下载 ' + name);
+    } catch (e) {
+      toast('下载失败，请手动复制文本');
+    }
+  }
+
+  function printLetter() {
+    var txt = $('#letterText').value;
+    if (!txt.trim()) { toast('请先生成举报信'); return; }
+    $('#printArea').innerHTML = '<pre>' + esc(txt) + '</pre>';
+    window.print();
+  }
+
+  function safeScroll(el) {
+    if (!el) return;
+    if (typeof el.scrollIntoView === 'function') {
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; } catch (e) { /* 忽略 */ }
+    }
+    var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    if (r) window.scrollTo(0, r.top + (window.pageYOffset || 0) - 160);
+  }
+
+  /* ---------------- 事件绑定 ---------------- */
+  function bind() {
+    $('#inputText').addEventListener('input', function () { updateCount(); saveDraft(); });
+    $('#btnSample').addEventListener('click', function () {
+      $('#inputText').value = SAMPLE; updateCount(); saveDraft(); toast('已载入示例文本');
+    });
+    $('#btnClear').addEventListener('click', function () {
+      $('#inputText').value = ''; updateCount(); saveDraft();
+      $('#letterOut').hidden = true; $('#letterForm').hidden = true;
+      $('#letterHint').hidden = false;
+      // guideCard 不清空：初始加载时即作为参考手册可见，清空应回到该初始态
+      ['#highlightCard', '#suggestCard', '#overviewCard', '#issuesCard', '#letterCard'].forEach(function (s) { $(s).hidden = true; });
+      $$('.principles-card .p-item').forEach(function (it) { it.hidden = true; });
+      $('#pPlaceholder').hidden = false;
+      $('#pPlaceholder').textContent = '请先粘贴待检文本并点击"开始识别"，系统将只列出与本次文本相关的鉴别原则。';
+      $('#pathRec').hidden = true;
+      $('#fPath').value = 'market';
+      state.res = null; state.rec = null;
+    });
+    $('#btnAnalyze').addEventListener('click', analyze);
+    $('#inputText').addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyze();
+    });
+
+    // 高亮片段 -> 定位条目
+    $('#markedText').addEventListener('click', function (e) {
+      var m = e.target.closest ? e.target.closest('mark') : null;
+      if (!m) return;
+      var idx = m.getAttribute('data-idx');
+      // 若被筛选隐藏，先重置筛选
+      var hit = state.res.hits.filter(function (h) { return String(h.idx) === idx; })[0];
+      if (hit) {
+        if (state.filterRisk !== 'all' && state.filterRisk !== hit.risk) {
+          state.filterRisk = 'all'; syncChips();
+        }
+        if (state.filterCat !== 'all' && state.filterCat !== hit.cat) {
+          state.filterCat = 'all'; $('#catFilter').value = 'all';
+        }
+        renderIssues();
+      }
+      var el = $('.issue[data-idx="' + idx + '"]');
+      if (el) {
+        safeScroll(el);
+        el.classList.add('flash');
+        setTimeout(function () { el.classList.remove('flash'); }, 1200);
+      }
+    });
+
+    // 条目按钮
+    $('#issueList').addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('button[data-act]') : null;
+      if (!btn) return;
+      var idx = btn.getAttribute('data-idx');
+      var hit = state.res.hits.filter(function (h) { return String(h.idx) === idx; })[0];
+      if (!hit) return;
+      if (btn.getAttribute('data-act') === 'locate') {
+        var mk = $('#markedText mark[data-idx="' + idx + '"]');
+        if (mk) {
+          safeScroll(mk);
+          mk.classList.add('flash');
+          setTimeout(function () { mk.classList.remove('flash'); }, 1200);
+        }
+      } else {
+        copyText('【' + hit.cat + ' · ' + hit.risk + '风险】' + hit.hit + '\n判定理由：' + hit.reason + '\n修改建议：' + hit.fix, '已复制该条建议');
+      }
+    });
+
+    // 风险筛选
+    $('#riskFilter').addEventListener('click', function (e) {
+      var chip = e.target.closest ? e.target.closest('.chip') : null;
+      if (!chip) return;
+      state.filterRisk = chip.getAttribute('data-risk');
+      syncChips();
+      renderIssues();
+    });
+    $('#catFilter').addEventListener('change', function () {
+      state.filterCat = this.value; renderIssues();
+    });
+
+    $('#btnCopyIssues').addEventListener('click', function () {
+      if (!state.res) { toast('请先完成识别'); return; }
+      var lines = ['漂绿表述识别结果（' + todayStr() + '）', '综合提示：本结果为基于规则的辅助筛查，不构成法律意见。', ''];
+      state.res.hits.forEach(function (h) {
+        lines.push(h.idx + '. [' + h.risk + '风险 | ' + h.cat + '] “' + h.hit + '”');
+        if (h.ctx && h.ctx !== h.hit) lines.push('   所在语句：' + h.ctx);
+        lines.push('   判定理由：' + h.reason);
+        lines.push('   修改建议：' + h.fix);
+      });
+      copyText(lines.join('\n'), '问题清单已复制');
+    });
+
+    $('#btnCopyFix').addEventListener('click', function () {
+      var items = $$('#fixList li').map(function (li, i) { return (i + 1) + '. ' + li.innerText.replace(/\s+/g, ' ').trim(); });
+      copyText(items.join('\n'), '修改建议已复制');
+    });
+
+    // 举报信
+    $('#btnGenLetter').addEventListener('click', genLetter);
+    $('#btnCopyLetter').addEventListener('click', function () { copyText($('#letterText').value, '举报信全文已复制'); });
+    $('#btnDownload').addEventListener('click', download);
+    $('#btnPrint').addEventListener('click', printLetter);
+
+    $('#fPath').addEventListener('change', function () {
+      var cfg = PATHS[this.value] || PATHS.market;
+      var fD = $('#fDemands');
+      if (fD.getAttribute('data-default') === '1') fD.value = cfg.demands;
+      var fO = $('#fOrg');
+      if (fO.getAttribute('data-default') === '1') fO.value = cfg.org;
+      showPathRecommendation(state.rec || { main: this.value, reason: '' }, false);
+    });
+    $('#btnTogglePaths').addEventListener('click', function () {
+      var on = $('#guideCard').classList.toggle('all-paths');
+      this.textContent = on ? '仅看推荐路径 ▴' : '查看其他维权路径 ▾';
+    });
+    filterGuide($('#fPath').value);
+    $('#fDemands').addEventListener('input', function () { this.removeAttribute('data-default'); });
+    $('#fOrg').addEventListener('input', function () { this.removeAttribute('data-default'); });
+    ['fOrg', 'fName', 'fPhone', 'fAddr', 'fBiz', 'fCode', 'fBizAddr', 'fMedium', 'fWhen', 'fClaims', 'fDemands', 'fEvidence']
+      .forEach(function (id) { $('#' + id).addEventListener('input', saveDraft); });
+    $('#optLow').addEventListener('change', saveDraft);
+    $('#optNotes').addEventListener('change', saveDraft);
+
+    // 免责声明
+    $('#btnDisclaimer').addEventListener('click', function () { $('#modal').hidden = false; });
+    $('#btnDismissBar').addEventListener('click', function () { $('#disclaimerBar').style.display = 'none'; });
+    $$('[data-close]').forEach(function (el) {
+      el.addEventListener('click', function () { $('#modal').hidden = true; });
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') $('#modal').hidden = true;
+    });
+  }
+
+  function syncChips() {
+    $$('#riskFilter .chip').forEach(function (c) {
+      c.classList.toggle('is-on', c.getAttribute('data-risk') === state.filterRisk);
+    });
+  }
+
+  /* ---------------- 启动 ---------------- */
+  document.addEventListener('DOMContentLoaded', function () {
+    bind();
+    loadDraft();
+    updateCount();
+    // 首次访问展示免责声明
+    try {
+      if (!localStorage.getItem('gw-seen-disclaimer')) {
+        $('#modal').hidden = false;
+        localStorage.setItem('gw-seen-disclaimer', '1');
+      }
+    } catch (e) { $('#modal').hidden = false; }
+  });
+})();
+
+</script>
+</body>
+</html>
